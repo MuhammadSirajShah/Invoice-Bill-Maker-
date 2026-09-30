@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'create_invoice_screen.dart';
+
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
@@ -37,7 +39,7 @@ class HomeScreen extends StatelessWidget {
 
             // Greeting
             const Text(
-              'Good Morning 👋',
+              'Good Morning',
               style: TextStyle(
                 fontSize: 14,
                 color: Colors.grey,
@@ -61,7 +63,14 @@ class HomeScreen extends StatelessWidget {
               width: double.infinity,
               height: 55,
               child: ElevatedButton.icon(
-                onPressed: () {},
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const CreateInvoiceScreen(),
+                    ),
+                  );
+                },
                 icon: const Icon(
                   Icons.add_rounded,
                 ),
