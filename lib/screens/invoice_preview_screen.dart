@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 import '../models/invoice_model.dart';
+import '../services/pdf_service.dart';
 
 class InvoicePreviewScreen extends StatelessWidget {
   final InvoiceModel invoice;
@@ -49,14 +51,37 @@ class InvoicePreviewScreen extends StatelessWidget {
               width: double.infinity,
               height: 55,
               child: ElevatedButton.icon(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'PDF generation will be added next.',
+                onPressed: () async {
+                  try {
+                    final filePath = await PdfService.saveInvoicePdf(
+                      invoice,
+                    );
+
+                    if (!context.mounted) {
+                      return;
+                    }
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'PDF saved successfully.',
+                        ),
+                        duration: const Duration(seconds: 3),
                       ),
-                    ),
-                  );
+                    );
+                  } catch (e) {
+                    if (!context.mounted) {
+                      return;
+                    }
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Failed to generate PDF: $e',
+                        ),
+                      ),
+                    );
+                  }
                 },
                 icon: const Icon(
                   Icons.picture_as_pdf_outlined,
@@ -77,14 +102,53 @@ class InvoicePreviewScreen extends StatelessWidget {
               width: double.infinity,
               height: 55,
               child: OutlinedButton.icon(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Sharing will be added next.',
+                onPressed: () async {
+                  try {
+                    final filePath = await PdfService.saveInvoicePdf(
+                      invoice,
+                    );
+
+                    if (!context.mounted) {
+                      return;
+                    }
+
+                    final result = await SharePlus.instance.share(
+                      ShareParams(
+                        title: 'Share Invoice',
+                        subject: 'Invoice ${invoice.invoiceNumber}',
+                        text: 'Invoice ${invoice.invoiceNumber}',
+                        files: [
+                          XFile(filePath),
+                        ],
                       ),
-                    ),
-                  );
+                    );
+
+                    if (!context.mounted) {
+                      return;
+                    }
+
+                    if (result.status == ShareResultStatus.success) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Invoice shared successfully.',
+                          ),
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (!context.mounted) {
+                      return;
+                    }
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Failed to share invoice: $e',
+                        ),
+                      ),
+                    );
+                  }
                 },
                 icon: const Icon(
                   Icons.share_outlined,

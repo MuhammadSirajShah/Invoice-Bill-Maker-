@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
@@ -249,6 +251,25 @@ class PdfService {
     );
 
     return pdf.save();
+  }
+
+  static Future<String> saveInvoicePdf(
+      InvoiceModel invoice,
+      ) async {
+    final pdfBytes = await generateInvoicePdf(invoice);
+
+    final directory = await getApplicationDocumentsDirectory();
+
+    final fileName =
+        '${invoice.invoiceNumber.replaceAll(' ', '_')}.pdf';
+
+    final file = File(
+      '${directory.path}/$fileName',
+    );
+
+    await file.writeAsBytes(pdfBytes);
+
+    return file.path;
   }
 
   static pw.Widget _summaryRow(
