@@ -1,9 +1,46 @@
 import 'package:flutter/material.dart';
 
+import '../models/invoice_model.dart';
+import '../services/invoice_storage_service.dart';
 import 'create_invoice_screen.dart';
+import 'invoice_preview_screen.dart';
+import 'invoices_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  List<InvoiceModel> invoices = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadInvoices();
+  }
+
+  Future<void> _loadInvoices() async {
+    final savedInvoices =
+    await InvoiceStorageService.getInvoices();
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      invoices = savedInvoices;
+    });
+  }
+
+  double get totalRevenue {
+    return invoices.fold(
+      0,
+          (sum, invoice) => sum + invoice.total,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -19,7 +56,7 @@ class HomeScreen extends StatelessWidget {
           IconButton(
             onPressed: () {},
             icon: const Icon(
-              Icons.notifications_none_rounded,
+              Icons.notifications_none,
             ),
           ),
           IconButton(
@@ -30,19 +67,18 @@ class HomeScreen extends StatelessWidget {
           ),
         ],
       ),
-
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      body: RefreshIndicator(
+        onRefresh: _loadInvoices,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
           children: [
+            const SizedBox(height: 8),
 
-            // Greeting
             const Text(
-              'Good Morning',
+              'Good Morning 👋',
               style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
               ),
             ),
 
@@ -51,28 +87,30 @@ class HomeScreen extends StatelessWidget {
             const Text(
               'Manage your invoices easily',
               style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
+                color: Colors.grey,
+                fontSize: 15,
               ),
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
 
-            // Create Invoice Button
             SizedBox(
               width: double.infinity,
-              height: 55,
+              height: 54,
               child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.push(
+                onPressed: () async {
+                  await Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const CreateInvoiceScreen(),
+                      builder: (context) =>
+                      const CreateInvoiceScreen(),
                     ),
                   );
+
+                  _loadInvoices();
                 },
                 icon: const Icon(
-                  Icons.add_rounded,
+                  Icons.add,
                 ),
                 label: const Text(
                   'Create New Invoice',
@@ -84,9 +122,8 @@ class HomeScreen extends StatelessWidget {
               ),
             ),
 
-            const SizedBox(height: 28),
+            const SizedBox(height: 24),
 
-            // Overview
             const Text(
               'Overview',
               style: TextStyle(
@@ -97,24 +134,21 @@ class HomeScreen extends StatelessWidget {
 
             const SizedBox(height: 12),
 
-            // First Row
             Row(
               children: [
                 Expanded(
                   child: _StatCard(
                     title: 'Total Invoices',
-                    value: '0',
-                    icon: Icons.receipt_long_rounded,
+                    value: invoices.length.toString(),
+                    icon: Icons.receipt_long,
                   ),
                 ),
-
                 const SizedBox(width: 12),
-
                 Expanded(
                   child: _StatCard(
                     title: 'Paid',
                     value: '0',
-                    icon: Icons.check_circle_outline_rounded,
+                    icon: Icons.check_circle_outline,
                   ),
                 ),
               ],
@@ -122,24 +156,22 @@ class HomeScreen extends StatelessWidget {
 
             const SizedBox(height: 12),
 
-            // Second Row
             Row(
               children: [
                 Expanded(
                   child: _StatCard(
                     title: 'Pending',
-                    value: '0',
-                    icon: Icons.pending_actions_rounded,
+                    value: invoices.length.toString(),
+                    icon: Icons.pending_actions,
                   ),
                 ),
-
                 const SizedBox(width: 12),
-
                 Expanded(
                   child: _StatCard(
                     title: 'Revenue',
-                    value: '\$0',
-                    icon: Icons.attach_money_rounded,
+                    value:
+                    '\$${totalRevenue.toStringAsFixed(2)}',
+                    icon: Icons.payments_outlined,
                   ),
                 ),
               ],
@@ -147,9 +179,9 @@ class HomeScreen extends StatelessWidget {
 
             const SizedBox(height: 28),
 
-            // Recent Invoices Header
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              mainAxisAlignment:
+              MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
                   'Recent Invoices',
@@ -158,85 +190,67 @@ class HomeScreen extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
+                if (invoices.isNotEmpty)
+                  TextButton(
+                    onPressed: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                          const InvoicesScreen(),
+                        ),
+                      );
 
-                TextButton(
-                  onPressed: () {},
-                  child: const Text(
-                    'View All',
+                      _loadInvoices();
+                    },
+                    child: const Text(
+                      'View All',
+                    ),
                   ),
-                ),
               ],
             ),
 
             const SizedBox(height: 8),
 
-            // Empty Invoice Card
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(
-                vertical: 40,
-                horizontal: 20,
+            if (invoices.isEmpty)
+              _EmptyInvoices()
+            else
+              ...invoices.take(5).map(
+                    (invoice) => _InvoiceCard(
+                  invoice: invoice,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            InvoicePreviewScreen(
+                              invoice: invoice,
+                            ),
+                      ),
+                    );
+                  },
+                ),
               ),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Column(
-                children: [
-                  Icon(
-                    Icons.receipt_long_outlined,
-                    size: 55,
-                    color: Colors.grey,
-                  ),
 
-                  SizedBox(height: 12),
-
-                  Text(
-                    'No invoices yet',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-
-                  SizedBox(height: 4),
-
-                  Text(
-                    'Create your first invoice to get started.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.grey,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
           ],
         ),
       ),
-
-      // Bottom Navigation
       bottomNavigationBar: NavigationBar(
         selectedIndex: 0,
-        onDestinationSelected: (index) {},
         destinations: const [
           NavigationDestination(
             icon: Icon(
               Icons.home_outlined,
             ),
             selectedIcon: Icon(
-              Icons.home_rounded,
+              Icons.home,
             ),
             label: 'Home',
           ),
           NavigationDestination(
             icon: Icon(
-              Icons.people_outline_rounded,
-            ),
-            selectedIcon: Icon(
-              Icons.people_rounded,
+              Icons.people_outline,
             ),
             label: 'Customers',
           ),
@@ -244,17 +258,11 @@ class HomeScreen extends StatelessWidget {
             icon: Icon(
               Icons.inventory_2_outlined,
             ),
-            selectedIcon: Icon(
-              Icons.inventory_2_rounded,
-            ),
             label: 'Products',
           ),
           NavigationDestination(
             icon: Icon(
               Icons.receipt_long_outlined,
-            ),
-            selectedIcon: Icon(
-              Icons.receipt_long_rounded,
             ),
             label: 'Invoices',
           ),
@@ -264,8 +272,125 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
+class _InvoiceCard extends StatelessWidget {
+  final InvoiceModel invoice;
+  final VoidCallback onTap;
 
-/// Reusable statistics card
+  const _InvoiceCard({
+    required this.invoice,
+    required this.onTap,
+  });
+
+  String _formatDate(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}/'
+        '${date.month.toString().padLeft(2, '0')}/'
+        '${date.year}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.only(
+        bottom: 12,
+      ),
+      elevation: 0,
+      child: ListTile(
+        onTap: onTap,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 8,
+        ),
+        leading: Container(
+          width: 46,
+          height: 46,
+          decoration: BoxDecoration(
+            color: Colors.indigo.withValues(
+              alpha: 0.1,
+            ),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Icon(
+            Icons.receipt_long,
+            color: Colors.indigo,
+          ),
+        ),
+        title: Text(
+          invoice.invoiceNumber,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        subtitle: Column(
+          crossAxisAlignment:
+          CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 4),
+            Text(
+              invoice.customerName,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              _formatDate(invoice.invoiceDate),
+              style: const TextStyle(
+                color: Colors.grey,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+        trailing: Text(
+          '${invoice.currency} '
+              '${invoice.total.toStringAsFixed(2)}',
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyInvoices extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          vertical: 36,
+          horizontal: 20,
+        ),
+        child: Column(
+          children: [
+            Icon(
+              Icons.receipt_long_outlined,
+              size: 56,
+              color: Colors.grey.shade400,
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'No invoices yet',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Create your first invoice to see it here.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.grey,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _StatCard extends StatelessWidget {
   final String title;
   final String value;
@@ -279,40 +404,37 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            icon,
-            size: 28,
-          ),
-
-          const SizedBox(height: 12),
-
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 13,
-              color: Colors.grey,
+    return Card(
+      elevation: 0,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment:
+          CrossAxisAlignment.start,
+          children: [
+            Icon(
+              icon,
+              size: 28,
+              color: Colors.indigo,
             ),
-          ),
-
-          const SizedBox(height: 4),
-
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
+            const SizedBox(height: 12),
+            Text(
+              value,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 4),
+            Text(
+              title,
+              style: const TextStyle(
+                color: Colors.grey,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

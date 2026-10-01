@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/invoice_item_model.dart';
 import '../models/invoice_model.dart';
+import '../services/invoice_storage_service.dart';
 import 'invoice_preview_screen.dart';
 
 class CreateInvoiceScreen extends StatefulWidget {
@@ -13,23 +14,17 @@ class CreateInvoiceScreen extends StatefulWidget {
 class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  final TextEditingController invoiceNumberController =
-  TextEditingController();
+  final TextEditingController invoiceNumberController = TextEditingController();
 
-  final TextEditingController customerNameController =
-  TextEditingController();
+  final TextEditingController customerNameController = TextEditingController();
 
-  final TextEditingController customerEmailController =
-  TextEditingController();
+  final TextEditingController customerEmailController = TextEditingController();
 
-  final TextEditingController customerPhoneController =
-  TextEditingController();
+  final TextEditingController customerPhoneController = TextEditingController();
 
-  final TextEditingController notesController =
-  TextEditingController();
+  final TextEditingController notesController = TextEditingController();
 
-  final TextEditingController discountController =
-  TextEditingController(text: '0');
+  final TextEditingController discountController = TextEditingController(text: '0');
 
   DateTime invoiceDate = DateTime.now();
 
@@ -238,7 +233,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
         '${date.year}';
   }
 
-  void generateInvoice() {
+  void generateInvoice() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -251,8 +246,12 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
           ),
         ),
       );
+
       return;
     }
+
+    final discount =
+        double.tryParse(discountController.text.trim()) ?? 0;
 
     final invoice = InvoiceModel(
       invoiceNumber: invoiceNumberController.text.trim(),
@@ -267,14 +266,36 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
       discount: discount,
     );
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => InvoicePreviewScreen(
-          invoice: invoice,
+    try {
+      await InvoiceStorageService.saveInvoice(
+        invoice,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => InvoicePreviewScreen(
+            invoice: invoice,
+          ),
         ),
-      ),
-    );
+      );
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Failed to save invoice: $e',
+          ),
+        ),
+      );
+    }
   }
 
   @override

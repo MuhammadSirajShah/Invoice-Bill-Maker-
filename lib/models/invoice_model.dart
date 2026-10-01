@@ -36,4 +36,50 @@ class InvoiceModel {
     final result = subtotal - discount;
     return result < 0 ? 0 : result;
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'invoiceNumber': invoiceNumber,
+      'customerName': customerName,
+      'customerEmail': customerEmail,
+      'customerPhone': customerPhone,
+      'invoiceDate': invoiceDate.toIso8601String(),
+      'dueDate': dueDate.toIso8601String(),
+      'currency': currency,
+      'notes': notes,
+      'discount': discount,
+      'items': items.map((item) {
+        return {
+          'name': item.name,
+          'quantity': item.quantity,
+          'price': item.price,
+        };
+      }).toList(),
+    };
+  }
+
+  factory InvoiceModel.fromJson(Map<String, dynamic> json) {
+    return InvoiceModel(
+      invoiceNumber: json['invoiceNumber'] ?? '',
+      customerName: json['customerName'] ?? '',
+      customerEmail: json['customerEmail'] ?? '',
+      customerPhone: json['customerPhone'] ?? '',
+      invoiceDate: DateTime.parse(
+        json['invoiceDate'],
+      ),
+      dueDate: DateTime.parse(
+        json['dueDate'],
+      ),
+      currency: json['currency'] ?? 'USD',
+      notes: json['notes'] ?? '',
+      discount: (json['discount'] ?? 0).toDouble(),
+      items: (json['items'] as List? ?? []).map((item) {
+        return InvoiceItem(
+          name: item['name'] ?? '',
+          quantity: (item['quantity'] ?? 0).toDouble(),
+          price: (item['price'] ?? 0).toDouble(),
+        );
+      }).toList(),
+    );
+  }
 }
