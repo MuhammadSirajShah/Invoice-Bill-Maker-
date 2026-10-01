@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/invoice_item_model.dart';
+import '../models/invoice_model.dart';
+import 'invoice_preview_screen.dart';
 
 class CreateInvoiceScreen extends StatefulWidget {
   const CreateInvoiceScreen({super.key});
@@ -11,6 +13,9 @@ class CreateInvoiceScreen extends StatefulWidget {
 class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
   final _formKey = GlobalKey<FormState>();
 
+  final TextEditingController invoiceNumberController =
+  TextEditingController();
+
   final TextEditingController customerNameController =
   TextEditingController();
 
@@ -20,8 +25,19 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
   final TextEditingController customerPhoneController =
   TextEditingController();
 
+  final TextEditingController notesController =
+  TextEditingController();
+
   final TextEditingController discountController =
   TextEditingController(text: '0');
+
+  DateTime invoiceDate = DateTime.now();
+
+  DateTime dueDate = DateTime.now().add(
+    const Duration(days: 7),
+  );
+
+  String selectedCurrency = 'USD';
 
   final List<InvoiceItem> items = [];
 
@@ -96,9 +112,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                     border: OutlineInputBorder(),
                   ),
                 ),
-
                 const SizedBox(height: 12),
-
                 TextField(
                   controller: quantityController,
                   keyboardType: const TextInputType.numberWithOptions(
@@ -112,9 +126,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                     border: OutlineInputBorder(),
                   ),
                 ),
-
                 const SizedBox(height: 12),
-
                 TextField(
                   controller: priceController,
                   keyboardType: const TextInputType.numberWithOptions(
@@ -138,12 +150,13 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
               },
               child: const Text('Cancel'),
             ),
-
             ElevatedButton(
               onPressed: () {
                 final name = itemNameController.text.trim();
+
                 final quantity =
                     double.tryParse(quantityController.text) ?? 0;
+
                 final price =
                     double.tryParse(priceController.text) ?? 0;
 
@@ -181,11 +194,96 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
     );
   }
 
+  Future<void> selectInvoiceDate() async {
+    final selectedDate = await showDatePicker(
+      context: context,
+      initialDate: invoiceDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+    );
+
+    if (selectedDate != null) {
+      setState(() {
+        invoiceDate = selectedDate;
+
+        if (dueDate.isBefore(invoiceDate)) {
+          dueDate = invoiceDate.add(
+            const Duration(days: 7),
+          );
+        }
+      });
+    }
+  }
+
+  Future<void> selectDueDate() async {
+    final selectedDate = await showDatePicker(
+      context: context,
+      initialDate: dueDate.isBefore(invoiceDate)
+          ? invoiceDate
+          : dueDate,
+      firstDate: invoiceDate,
+      lastDate: DateTime(2100),
+    );
+
+    if (selectedDate != null) {
+      setState(() {
+        dueDate = selectedDate;
+      });
+    }
+  }
+
+  String formatDate(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}/'
+        '${date.month.toString().padLeft(2, '0')}/'
+        '${date.year}';
+  }
+
+  void generateInvoice() {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    if (items.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Please add at least one item.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final invoice = InvoiceModel(
+      invoiceNumber: invoiceNumberController.text.trim(),
+      customerName: customerNameController.text.trim(),
+      customerEmail: customerEmailController.text.trim(),
+      customerPhone: customerPhoneController.text.trim(),
+      invoiceDate: invoiceDate,
+      dueDate: dueDate,
+      currency: selectedCurrency,
+      notes: notesController.text.trim(),
+      items: List.from(items),
+      discount: discount,
+    );
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => InvoicePreviewScreen(
+          invoice: invoice,
+        ),
+      ),
+    );
+  }
+
   @override
   void dispose() {
+    invoiceNumberController.dispose();
     customerNameController.dispose();
     customerEmailController.dispose();
     customerPhoneController.dispose();
+    notesController.dispose();
     discountController.dispose();
 
     super.dispose();
@@ -202,7 +300,6 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
           ),
         ),
       ),
-
       body: Form(
         key: _formKey,
         child: SingleChildScrollView(
@@ -210,8 +307,97 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const Text(
+                'Invoice Details',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 14),
 
-              // Customer Information
+              TextFormField(
+                controller: invoiceNumberController,
+                decoration: const InputDecoration(
+                  labelText: 'Invoice Number',
+                  hintText: 'e.g. INV-001',
+                  prefixIcon: Icon(
+                    Icons.receipt_long_outlined,
+                  ),
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter invoice number';
+                  }
+                  return null;
+                },
+              ),
+
+              const SizedBox(height: 12),
+
+              Row(
+                children: [
+                  Expanded(
+                    child: _DateField(
+                      title: 'Invoice Date',
+                      date: formatDate(invoiceDate),
+                      icon: Icons.calendar_today_outlined,
+                      onTap: selectInvoiceDate,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _DateField(
+                      title: 'Due Date',
+                      date: formatDate(dueDate),
+                      icon: Icons.event_outlined,
+                      onTap: selectDueDate,
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 12),
+
+              DropdownButtonFormField<String>(
+                initialValue: selectedCurrency,
+                decoration: const InputDecoration(
+                  labelText: 'Currency',
+                  prefixIcon: Icon(
+                    Icons.currency_exchange_rounded,
+                  ),
+                  border: OutlineInputBorder(),
+                ),
+                items: const [
+                  DropdownMenuItem(
+                    value: 'USD',
+                    child: Text('USD - US Dollar'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'EUR',
+                    child: Text('EUR - Euro'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'GBP',
+                    child: Text('GBP - British Pound'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'PKR',
+                    child: Text('PKR - Pakistani Rupee'),
+                  ),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() {
+                      selectedCurrency = value;
+                    });
+                  }
+                },
+              ),
+
+              const SizedBox(height: 28),
+
               const Text(
                 'Customer Information',
                 style: TextStyle(
@@ -236,7 +422,6 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                   if (value == null || value.trim().isEmpty) {
                     return 'Please enter customer name';
                   }
-
                   return null;
                 },
               ),
@@ -273,7 +458,6 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
 
               const SizedBox(height: 28),
 
-              // Items Header
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -284,7 +468,6 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-
                   OutlinedButton.icon(
                     onPressed: addItem,
                     icon: const Icon(
@@ -297,7 +480,6 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
 
               const SizedBox(height: 12),
 
-              // Empty Items
               if (items.isEmpty)
                 Container(
                   width: double.infinity,
@@ -316,18 +498,14 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                         size: 45,
                         color: Colors.grey,
                       ),
-
                       SizedBox(height: 10),
-
                       Text(
                         'No items added',
                         style: TextStyle(
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-
                       SizedBox(height: 4),
-
                       Text(
                         'Tap "Add Item" to add a product or service.',
                         textAlign: TextAlign.center,
@@ -339,7 +517,6 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                   ),
                 ),
 
-              // Items List
               if (items.isNotEmpty)
                 ...List.generate(
                   items.length,
@@ -374,9 +551,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                               color: Colors.indigo,
                             ),
                           ),
-
                           const SizedBox(width: 12),
-
                           Expanded(
                             child: Column(
                               crossAxisAlignment:
@@ -389,9 +564,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
-
                                 const SizedBox(height: 4),
-
                                 Text(
                                   '${item.quantity} × \$${item.price.toStringAsFixed(2)}',
                                   style: TextStyle(
@@ -399,9 +572,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                                     fontSize: 13,
                                   ),
                                 ),
-
                                 const SizedBox(height: 4),
-
                                 Text(
                                   '\$${item.total.toStringAsFixed(2)}',
                                   style: const TextStyle(
@@ -411,14 +582,12 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                               ],
                             ),
                           ),
-
                           IconButton(
                             onPressed: () => editItem(index),
                             icon: const Icon(
                               Icons.edit_outlined,
                             ),
                           ),
-
                           IconButton(
                             onPressed: () => deleteItem(index),
                             icon: const Icon(
@@ -433,7 +602,6 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
 
               const SizedBox(height: 18),
 
-              // Discount
               const Text(
                 'Discount',
                 style: TextStyle(
@@ -464,7 +632,37 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
 
               const SizedBox(height: 28),
 
-              // Summary
+              const Text(
+                'Notes',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              TextFormField(
+                controller: notesController,
+                maxLines: 4,
+                decoration: const InputDecoration(
+                  labelText: 'Notes',
+                  hintText: 'Thank you for your business...',
+                  alignLabelWithHint: true,
+                  prefixIcon: Padding(
+                    padding: EdgeInsets.only(
+                      bottom: 55,
+                    ),
+                    child: Icon(
+                      Icons.notes_outlined,
+                    ),
+                  ),
+                  border: OutlineInputBorder(),
+                ),
+              ),
+
+              const SizedBox(height: 28),
+
               const Text(
                 'Invoice Summary',
                 style: TextStyle(
@@ -489,23 +687,22 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                   children: [
                     _SummaryRow(
                       title: 'Subtotal',
-                      value: '\$${subtotal.toStringAsFixed(2)}',
+                      value:
+                      '$selectedCurrency ${subtotal.toStringAsFixed(2)}',
                     ),
-
                     const SizedBox(height: 10),
-
                     _SummaryRow(
                       title: 'Discount',
-                      value: '-\$${discount.toStringAsFixed(2)}',
+                      value:
+                      '-$selectedCurrency ${discount.toStringAsFixed(2)}',
                     ),
-
                     const Divider(
                       height: 24,
                     ),
-
                     _SummaryRow(
                       title: 'Total',
-                      value: '\$${total.toStringAsFixed(2)}',
+                      value:
+                      '$selectedCurrency ${total.toStringAsFixed(2)}',
                       isTotal: true,
                     ),
                   ],
@@ -514,35 +711,11 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
 
               const SizedBox(height: 28),
 
-              // Generate Invoice
               SizedBox(
                 width: double.infinity,
                 height: 55,
                 child: ElevatedButton.icon(
-                  onPressed: () {
-                    if (!_formKey.currentState!.validate()) {
-                      return;
-                    }
-
-                    if (items.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Please add at least one item.',
-                          ),
-                        ),
-                      );
-                      return;
-                    }
-
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Invoice information is ready.',
-                        ),
-                      ),
-                    );
-                  },
+                  onPressed: generateInvoice,
                   icon: const Icon(
                     Icons.receipt_long_rounded,
                   ),
@@ -558,6 +731,41 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
 
               const SizedBox(height: 20),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DateField extends StatelessWidget {
+  final String title;
+  final String date;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _DateField({
+    required this.title,
+    required this.date,
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: title,
+          prefixIcon: Icon(icon),
+          border: const OutlineInputBorder(),
+        ),
+        child: Text(
+          date,
+          style: const TextStyle(
+            fontSize: 14,
           ),
         ),
       ),
@@ -585,12 +793,10 @@ class _SummaryRow extends StatelessWidget {
           title,
           style: TextStyle(
             fontSize: isTotal ? 17 : 15,
-            fontWeight: isTotal
-                ? FontWeight.bold
-                : FontWeight.normal,
-            color: isTotal
-                ? Colors.black
-                : Colors.grey.shade700,
+            fontWeight:
+            isTotal ? FontWeight.bold : FontWeight.normal,
+            color:
+            isTotal ? Colors.black : Colors.grey.shade700,
           ),
         ),
         Text(
