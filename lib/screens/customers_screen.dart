@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/customer_model.dart';
 import '../services/customer_storage_service.dart';
+import 'add_customer_screen.dart';
 
 class CustomersScreen extends StatefulWidget {
   const CustomersScreen({super.key});
@@ -72,129 +73,24 @@ class _CustomersScreenState extends State<CustomersScreen> {
     });
   }
 
-  Future<void> _showAddCustomerDialog() async {
-    final nameController = TextEditingController();
-    final emailController = TextEditingController();
-    final phoneController = TextEditingController();
-
-    final formKey = GlobalKey<FormState>();
-
-    await showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text(
-            'Add Customer',
-          ),
-          content: Form(
-            key: formKey,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(
-                    controller: nameController,
-                    textInputAction:
-                    TextInputAction.next,
-                    decoration: const InputDecoration(
-                      labelText: 'Customer Name',
-                      prefixIcon: Icon(
-                        Icons.person_outline,
-                      ),
-                    ),
-                    validator: (value) {
-                      if (value == null ||
-                          value.trim().isEmpty) {
-                        return 'Enter customer name';
-                      }
-
-                      return null;
-                    },
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  TextFormField(
-                    controller: emailController,
-                    keyboardType:
-                    TextInputType.emailAddress,
-                    textInputAction:
-                    TextInputAction.next,
-                    decoration: const InputDecoration(
-                      labelText: 'Email',
-                      prefixIcon: Icon(
-                        Icons.email_outlined,
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  TextFormField(
-                    controller: phoneController,
-                    keyboardType:
-                    TextInputType.phone,
-                    decoration: const InputDecoration(
-                      labelText: 'Phone',
-                      prefixIcon: Icon(
-                        Icons.phone_outlined,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text(
-                'Cancel',
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (!formKey.currentState!
-                    .validate()) {
-                  return;
-                }
-
-                final customer = CustomerModel(
-                  id: DateTime.now()
-                      .millisecondsSinceEpoch
-                      .toString(),
-                  name: nameController.text.trim(),
-                  email: emailController.text.trim(),
-                  phone: phoneController.text.trim(),
-                );
-
-                await CustomerStorageService
-                    .saveCustomer(
-                  customer,
-                );
-
-                if (!context.mounted) {
-                  return;
-                }
-
-                Navigator.pop(context);
-
-                await _loadCustomers();
-              },
-              child: const Text(
-                'Save',
-              ),
-            ),
-          ],
-        );
-      },
+  Future<void> _addCustomer() async {
+    final customer = await Navigator.push<CustomerModel>(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+        const AddCustomerScreen(),
+      ),
     );
 
-    nameController.dispose();
-    emailController.dispose();
-    phoneController.dispose();
+    if (customer == null) {
+      return;
+    }
+
+    await CustomerStorageService.saveCustomer(
+      customer,
+    );
+
+    await _loadCustomers();
   }
 
   Future<void> _deleteCustomer(
@@ -384,7 +280,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showAddCustomerDialog,
+        onPressed: _addCustomer,
         icon: const Icon(
           Icons.person_add,
         ),

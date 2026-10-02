@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/invoice_model.dart';
 import '../services/invoice_storage_service.dart';
 import 'create_invoice_screen.dart';
+import 'customers_screen.dart';
 import 'invoice_preview_screen.dart';
 import 'invoices_screen.dart';
 
@@ -239,6 +240,16 @@ class _HomeScreenState extends State<HomeScreen> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: 0,
         onDestinationSelected: (index) async {
+          if (index == 1) {
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                const CustomersScreen(),
+              ),
+            );
+          }
+
           if (index == 3) {
             await Navigator.push(
               context,
