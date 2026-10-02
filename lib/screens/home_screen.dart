@@ -238,6 +238,19 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: 0,
+        onDestinationSelected: (index) async {
+          if (index == 3) {
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                const InvoicesScreen(),
+              ),
+            );
+
+            _loadInvoices();
+          }
+        },
         destinations: const [
           NavigationDestination(
             icon: Icon(
