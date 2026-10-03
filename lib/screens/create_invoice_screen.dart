@@ -10,7 +10,14 @@ import '../services/product_storage_service.dart';
 import 'invoice_preview_screen.dart';
 
 class CreateInvoiceScreen extends StatefulWidget {
-  const CreateInvoiceScreen({super.key});
+  final InvoiceModel? invoice;
+
+  const CreateInvoiceScreen({
+    super.key,
+    this.invoice,
+  });
+
+  bool get isEditing => invoice != null;
 
   @override
   State<CreateInvoiceScreen> createState() =>
@@ -37,9 +44,7 @@ class _CreateInvoiceScreenState
   TextEditingController();
 
   final TextEditingController discountController =
-  TextEditingController(
-    text: '0',
-  );
+  TextEditingController();
 
   DateTime invoiceDate = DateTime.now();
 
@@ -49,21 +54,63 @@ class _CreateInvoiceScreenState
 
   String selectedCurrency = 'USD';
 
+  String originalInvoiceNumber = '';
+
   List<InvoiceItem> items = [];
 
   List<CustomerModel> savedCustomers = [];
 
   List<ProductModel> savedProducts = [];
 
+  bool get isEditing => widget.invoice != null;
+
   @override
   void initState() {
     super.initState();
 
-    invoiceNumberController.text =
-    'INV-${DateTime.now().millisecondsSinceEpoch}';
+    if (widget.invoice != null) {
+      _loadInvoiceData(widget.invoice!);
+    } else {
+      invoiceNumberController.text =
+      'INV-${DateTime.now().millisecondsSinceEpoch}';
+
+      discountController.text = '0';
+    }
 
     _loadCustomers();
     _loadProducts();
+  }
+
+  void _loadInvoiceData(InvoiceModel invoice) {
+    originalInvoiceNumber = invoice.invoiceNumber;
+
+    invoiceNumberController.text =
+        invoice.invoiceNumber;
+
+    customerNameController.text =
+        invoice.customerName;
+
+    customerEmailController.text =
+        invoice.customerEmail;
+
+    customerPhoneController.text =
+        invoice.customerPhone;
+
+    notesController.text =
+        invoice.notes;
+
+    discountController.text =
+        invoice.discount.toStringAsFixed(2);
+
+    invoiceDate = invoice.invoiceDate;
+
+    dueDate = invoice.dueDate;
+
+    selectedCurrency = invoice.currency;
+
+    items = List<InvoiceItem>.from(
+      invoice.items,
+    );
   }
 
   @override
@@ -237,14 +284,12 @@ class _CreateInvoiceScreenState
                   fontWeight: FontWeight.bold,
                 ),
               ),
-
               const SizedBox(height: 16),
-
               ...savedProducts.map(
                     (product) {
                   return ListTile(
-                    leading: CircleAvatar(
-                      child: const Icon(
+                    leading: const CircleAvatar(
+                      child: Icon(
                         Icons.inventory_2_outlined,
                       ),
                     ),
@@ -302,8 +347,7 @@ class _CreateInvoiceScreenState
   }
 
   Future<void> _selectInvoiceDate() async {
-    final selectedDate =
-    await showDatePicker(
+    final selectedDate = await showDatePicker(
       context: context,
       initialDate: invoiceDate,
       firstDate: DateTime(2020),
@@ -320,8 +364,7 @@ class _CreateInvoiceScreenState
   }
 
   Future<void> _selectDueDate() async {
-    final selectedDate =
-    await showDatePicker(
+    final selectedDate = await showDatePicker(
       context: context,
       initialDate: dueDate,
       firstDate: DateTime(2020),
@@ -351,7 +394,8 @@ class _CreateInvoiceScreenState
       text: existingItem?.name ?? '',
     );
 
-    final quantityController = TextEditingController(
+    final quantityController =
+    TextEditingController(
       text: existingItem?.quantity
           .toStringAsFixed(0) ??
           '1',
@@ -384,7 +428,8 @@ class _CreateInvoiceScreenState
                     controller: nameController,
                     decoration:
                     const InputDecoration(
-                      labelText: 'Item / Service Name',
+                      labelText:
+                      'Item / Service Name',
                       prefixIcon: Icon(
                         Icons.inventory_2_outlined,
                       ),
@@ -398,13 +443,13 @@ class _CreateInvoiceScreenState
                       return null;
                     },
                   ),
-
                   const SizedBox(height: 12),
-
                   TextFormField(
-                    controller: quantityController,
+                    controller:
+                    quantityController,
                     keyboardType:
-                    const TextInputType.numberWithOptions(
+                    const TextInputType
+                        .numberWithOptions(
                       decimal: true,
                     ),
                     decoration:
@@ -428,13 +473,13 @@ class _CreateInvoiceScreenState
                       return null;
                     },
                   ),
-
                   const SizedBox(height: 12),
-
                   TextFormField(
-                    controller: priceController,
+                    controller:
+                    priceController,
                     keyboardType:
-                    const TextInputType.numberWithOptions(
+                    const TextInputType
+                        .numberWithOptions(
                       decimal: true,
                     ),
                     decoration:
@@ -479,12 +524,15 @@ class _CreateInvoiceScreenState
                 }
 
                 final item = InvoiceItem(
-                  name: nameController.text.trim(),
+                  name:
+                  nameController.text.trim(),
                   quantity: double.parse(
-                    quantityController.text.trim(),
+                    quantityController.text
+                        .trim(),
                   ),
                   price: double.parse(
-                    priceController.text.trim(),
+                    priceController.text
+                        .trim(),
                   ),
                 );
 
@@ -552,18 +600,26 @@ class _CreateInvoiceScreenState
       notes: notesController.text.trim(),
       items: List.from(items),
       discount: discount,
+      status: widget.invoice?.status ?? 'Pending',
     );
 
     try {
-      await InvoiceStorageService.saveInvoice(
-        invoice,
-      );
+      if (isEditing) {
+        await InvoiceStorageService.updateInvoiceWithOriginalNumber(
+          originalInvoiceNumber,
+          invoice,
+        );
+      } else {
+        await InvoiceStorageService.saveInvoice(
+          invoice,
+        );
+      }
 
       if (!mounted) {
         return;
       }
 
-      Navigator.push(
+      Navigator.pushReplacement(
         context,
         MaterialPageRoute(
           builder: (context) =>
@@ -591,9 +647,11 @@ class _CreateInvoiceScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Create Invoice',
-          style: TextStyle(
+        title: Text(
+          isEditing
+              ? 'Edit Invoice'
+              : 'Create Invoice',
+          style: const TextStyle(
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -611,7 +669,8 @@ class _CreateInvoiceScreenState
             const SizedBox(height: 12),
 
             TextFormField(
-              controller: invoiceNumberController,
+              controller:
+              invoiceNumberController,
               decoration: const InputDecoration(
                 labelText: 'Invoice Number',
                 prefixIcon: Icon(
@@ -636,8 +695,10 @@ class _CreateInvoiceScreenState
                 Expanded(
                   child: _DateField(
                     label: 'Invoice Date',
-                    date: _formatDate(invoiceDate),
-                    onTap: _selectInvoiceDate,
+                    date:
+                    _formatDate(invoiceDate),
+                    onTap:
+                    _selectInvoiceDate,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -655,7 +716,8 @@ class _CreateInvoiceScreenState
 
             DropdownButtonFormField<String>(
               value: selectedCurrency,
-              decoration: const InputDecoration(
+              decoration:
+              const InputDecoration(
                 labelText: 'Currency',
                 prefixIcon: Icon(
                   Icons.currency_exchange,
@@ -700,9 +762,9 @@ class _CreateInvoiceScreenState
 
             if (savedCustomers.isNotEmpty) ...[
               const SizedBox(height: 8),
-
               Align(
-                alignment: Alignment.centerRight,
+                alignment:
+                Alignment.centerRight,
                 child: TextButton.icon(
                   onPressed: _selectCustomer,
                   icon: const Icon(
@@ -718,7 +780,8 @@ class _CreateInvoiceScreenState
             const SizedBox(height: 8),
 
             TextFormField(
-              controller: customerNameController,
+              controller:
+              customerNameController,
               decoration: const InputDecoration(
                 labelText: 'Customer Name',
                 prefixIcon: Icon(
@@ -739,7 +802,8 @@ class _CreateInvoiceScreenState
             const SizedBox(height: 12),
 
             TextFormField(
-              controller: customerEmailController,
+              controller:
+              customerEmailController,
               keyboardType:
               TextInputType.emailAddress,
               decoration: const InputDecoration(
@@ -754,7 +818,8 @@ class _CreateInvoiceScreenState
             const SizedBox(height: 12),
 
             TextFormField(
-              controller: customerPhoneController,
+              controller:
+              customerPhoneController,
               keyboardType:
               TextInputType.phone,
               decoration: const InputDecoration(
@@ -811,7 +876,8 @@ class _CreateInvoiceScreenState
             if (items.isEmpty)
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(24),
+                padding:
+                const EdgeInsets.all(24),
                 decoration: BoxDecoration(
                   color: Colors.grey.shade100,
                   borderRadius:
@@ -820,8 +886,7 @@ class _CreateInvoiceScreenState
                 child: Column(
                   children: [
                     Icon(
-                      Icons
-                          .shopping_cart_outlined,
+                      Icons.shopping_cart_outlined,
                       size: 45,
                       color:
                       Colors.grey.shade500,
@@ -852,14 +917,15 @@ class _CreateInvoiceScreenState
                     child: ListTile(
                       title: Text(
                         item.name,
-                        style: const TextStyle(
+                        style:
+                        const TextStyle(
                           fontWeight:
                           FontWeight.bold,
                         ),
                       ),
                       subtitle: Text(
                         '${item.quantity} × '
-                            '${selectedCurrency} '
+                            '$selectedCurrency '
                             '${item.price.toStringAsFixed(2)}',
                       ),
                       trailing: Row(
@@ -867,7 +933,7 @@ class _CreateInvoiceScreenState
                         MainAxisSize.min,
                         children: [
                           Text(
-                            '${selectedCurrency} '
+                            '$selectedCurrency '
                                 '${item.total.toStringAsFixed(2)}',
                             style:
                             const TextStyle(
@@ -884,7 +950,8 @@ class _CreateInvoiceScreenState
                               );
                             },
                             icon: const Icon(
-                              Icons.edit_outlined,
+                              Icons
+                                  .edit_outlined,
                             ),
                           ),
                           IconButton(
@@ -914,12 +981,15 @@ class _CreateInvoiceScreenState
             const SizedBox(height: 12),
 
             TextFormField(
-              controller: discountController,
+              controller:
+              discountController,
               keyboardType:
-              const TextInputType.numberWithOptions(
+              const TextInputType
+                  .numberWithOptions(
                 decimal: true,
               ),
-              decoration: const InputDecoration(
+              decoration:
+              const InputDecoration(
                 labelText: 'Discount',
                 prefixIcon: Icon(
                   Icons.discount_outlined,
@@ -956,7 +1026,8 @@ class _CreateInvoiceScreenState
             TextFormField(
               controller: notesController,
               maxLines: 4,
-              decoration: const InputDecoration(
+              decoration:
+              const InputDecoration(
                 hintText:
                 'Add notes or payment terms...',
                 border: OutlineInputBorder(),
@@ -975,7 +1046,8 @@ class _CreateInvoiceScreenState
             Card(
               elevation: 0,
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding:
+                const EdgeInsets.all(16),
                 child: Column(
                   children: [
                     _SummaryRow(
@@ -1016,9 +1088,11 @@ class _CreateInvoiceScreenState
                 icon: const Icon(
                   Icons.receipt_long,
                 ),
-                label: const Text(
-                  'Generate Invoice',
-                  style: TextStyle(
+                label: Text(
+                  isEditing
+                      ? 'Update Invoice'
+                      : 'Generate Invoice',
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                   ),
@@ -1080,7 +1154,8 @@ class _DateField extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius:
+      BorderRadius.circular(12),
       child: InputDecorator(
         decoration: InputDecoration(
           labelText: label,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/invoice_model.dart';
 import '../services/invoice_storage_service.dart';
+import 'create_invoice_screen.dart';
 import 'invoice_preview_screen.dart';
 
 class InvoicesScreen extends StatefulWidget {
@@ -112,6 +113,23 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
     await _loadInvoices();
   }
 
+  Future<void> _editInvoice(
+      InvoiceModel invoice,
+      ) async {
+    Navigator.pop(context);
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CreateInvoiceScreen(
+          invoice: invoice,
+        ),
+      ),
+    );
+
+    await _loadInvoices();
+  }
+
   Future<void> _showInvoiceOptions(
       InvoiceModel invoice,
       ) async {
@@ -126,6 +144,19 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                ListTile(
+                  leading: const Icon(
+                    Icons.edit_outlined,
+                  ),
+                  title: const Text(
+                    'Edit Invoice',
+                  ),
+                  onTap: () async {
+                    await _editInvoice(
+                      invoice,
+                    );
+                  },
+                ),
                 ListTile(
                   leading: Icon(
                     isPaid

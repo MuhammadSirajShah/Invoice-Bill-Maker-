@@ -75,6 +75,39 @@ class InvoiceStorageService {
     );
   }
 
+  // Used when the invoice number itself is changed
+  // while editing an existing invoice.
+  static Future<void>
+  updateInvoiceWithOriginalNumber(
+      String originalInvoiceNumber,
+      InvoiceModel updatedInvoice,
+      ) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final invoices = await getInvoices();
+
+    final index = invoices.indexWhere(
+          (invoice) =>
+      invoice.invoiceNumber ==
+          originalInvoiceNumber,
+    );
+
+    if (index == -1) {
+      return;
+    }
+
+    invoices[index] = updatedInvoice;
+
+    final invoicesJson = invoices.map((invoice) {
+      return jsonEncode(invoice.toJson());
+    }).toList();
+
+    await prefs.setStringList(
+      _invoicesKey,
+      invoicesJson,
+    );
+  }
+
   static Future<void> updateInvoiceStatus(
       String invoiceNumber,
       String status,
