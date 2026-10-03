@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
+
+import '../models/business_model.dart';
 import '../models/invoice_model.dart';
+import '../services/business_storage_service.dart';
 import '../services/pdf_service.dart';
 
-class InvoicePreviewScreen extends StatelessWidget {
+class InvoicePreviewScreen extends StatefulWidget {
   final InvoiceModel invoice;
 
   const InvoicePreviewScreen({
@@ -12,7 +15,129 @@ class InvoicePreviewScreen extends StatelessWidget {
   });
 
   @override
+  State<InvoicePreviewScreen> createState() =>
+      _InvoicePreviewScreenState();
+}
+
+class _InvoicePreviewScreenState
+    extends State<InvoicePreviewScreen> {
+  BusinessModel? business;
+
+  bool isLoadingBusiness = true;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _loadBusiness();
+  }
+
+  Future<void> _loadBusiness() async {
+    final savedBusiness =
+    await BusinessStorageService.getBusiness();
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      business = savedBusiness;
+      isLoadingBusiness = false;
+    });
+  }
+
+  Future<void> _generatePdf() async {
+    try {
+      final filePath =
+      await PdfService.saveInvoicePdf(
+        widget.invoice,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'PDF saved successfully.',
+          ),
+          duration: Duration(seconds: 3),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Failed to generate PDF: $e',
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _shareInvoice() async {
+    try {
+      final filePath =
+      await PdfService.saveInvoicePdf(
+        widget.invoice,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      final result =
+      await SharePlus.instance.share(
+        ShareParams(
+          title: 'Share Invoice',
+          subject:
+          'Invoice ${widget.invoice.invoiceNumber}',
+          text:
+          'Invoice ${widget.invoice.invoiceNumber}',
+          files: [
+            XFile(filePath),
+          ],
+        ),
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      if (result.status ==
+          ShareResultStatus.success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Invoice shared successfully.',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Failed to share invoice: $e',
+          ),
+        ),
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final invoice = widget.invoice;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -22,27 +147,47 @@ class InvoicePreviewScreen extends StatelessWidget {
           ),
         ),
       ),
-      body: SingleChildScrollView(
+      body: isLoadingBusiness
+          ? const Center(
+        child: CircularProgressIndicator(),
+      )
+          : SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            _InvoiceHeader(invoice: invoice),
+            _BusinessSection(
+              business: business,
+            ),
 
             const SizedBox(height: 16),
 
-            _CustomerSection(invoice: invoice),
+            _InvoiceHeader(
+              invoice: invoice,
+            ),
 
             const SizedBox(height: 16),
 
-            _ItemsSection(invoice: invoice),
+            _CustomerSection(
+              invoice: invoice,
+            ),
 
             const SizedBox(height: 16),
 
-            _SummarySection(invoice: invoice),
+            _ItemsSection(
+              invoice: invoice,
+            ),
+
+            const SizedBox(height: 16),
+
+            _SummarySection(
+              invoice: invoice,
+            ),
 
             if (invoice.notes.isNotEmpty) ...[
               const SizedBox(height: 16),
-              _NotesSection(invoice: invoice),
+              _NotesSection(
+                invoice: invoice,
+              ),
             ],
 
             const SizedBox(height: 24),
@@ -51,38 +196,7 @@ class InvoicePreviewScreen extends StatelessWidget {
               width: double.infinity,
               height: 55,
               child: ElevatedButton.icon(
-                onPressed: () async {
-                  try {
-                    final filePath = await PdfService.saveInvoicePdf(
-                      invoice,
-                    );
-
-                    if (!context.mounted) {
-                      return;
-                    }
-
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'PDF saved successfully.',
-                        ),
-                        duration: const Duration(seconds: 3),
-                      ),
-                    );
-                  } catch (e) {
-                    if (!context.mounted) {
-                      return;
-                    }
-
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Failed to generate PDF: $e',
-                        ),
-                      ),
-                    );
-                  }
-                },
+                onPressed: _generatePdf,
                 icon: const Icon(
                   Icons.picture_as_pdf_outlined,
                 ),
@@ -90,7 +204,8 @@ class InvoicePreviewScreen extends StatelessWidget {
                   'Generate PDF',
                   style: TextStyle(
                     fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                    fontWeight:
+                    FontWeight.bold,
                   ),
                 ),
               ),
@@ -102,54 +217,7 @@ class InvoicePreviewScreen extends StatelessWidget {
               width: double.infinity,
               height: 55,
               child: OutlinedButton.icon(
-                onPressed: () async {
-                  try {
-                    final filePath = await PdfService.saveInvoicePdf(
-                      invoice,
-                    );
-
-                    if (!context.mounted) {
-                      return;
-                    }
-
-                    final result = await SharePlus.instance.share(
-                      ShareParams(
-                        title: 'Share Invoice',
-                        subject: 'Invoice ${invoice.invoiceNumber}',
-                        text: 'Invoice ${invoice.invoiceNumber}',
-                        files: [
-                          XFile(filePath),
-                        ],
-                      ),
-                    );
-
-                    if (!context.mounted) {
-                      return;
-                    }
-
-                    if (result.status == ShareResultStatus.success) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Invoice shared successfully.',
-                          ),
-                        ),
-                      );
-                    }
-                  } catch (e) {
-                    if (!context.mounted) {
-                      return;
-                    }
-
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Failed to share invoice: $e',
-                        ),
-                      ),
-                    );
-                  }
-                },
+                onPressed: _shareInvoice,
                 icon: const Icon(
                   Icons.share_outlined,
                 ),
@@ -157,7 +225,8 @@ class InvoicePreviewScreen extends StatelessWidget {
                   'Share Invoice',
                   style: TextStyle(
                     fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                    fontWeight:
+                    FontWeight.bold,
                   ),
                 ),
               ),
@@ -167,6 +236,154 @@ class InvoicePreviewScreen extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _BusinessSection extends StatelessWidget {
+  final BusinessModel? business;
+
+  const _BusinessSection({
+    required this.business,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (business == null) {
+      return _SectionCard(
+        title: 'Business Information',
+        icon: Icons.business_outlined,
+        child: const Text(
+          'No business profile added yet.',
+          style: TextStyle(
+            color: Colors.grey,
+          ),
+        ),
+      );
+    }
+
+    final hasPhone =
+        business!.phone.isNotEmpty;
+
+    final hasEmail =
+        business!.email.isNotEmpty;
+
+    final hasAddress =
+        business!.address.isNotEmpty;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.indigo,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment:
+        CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: Colors.white
+                      .withValues(alpha: 0.15),
+                  borderRadius:
+                  BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.business_outlined,
+                  color: Colors.white,
+                  size: 25,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Business Information',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
+          Text(
+            business!.businessName,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 21,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+
+          if (hasPhone) ...[
+            const SizedBox(height: 10),
+            _BusinessInfoRow(
+              icon: Icons.phone_outlined,
+              text: business!.phone,
+            ),
+          ],
+
+          if (hasEmail) ...[
+            const SizedBox(height: 8),
+            _BusinessInfoRow(
+              icon: Icons.email_outlined,
+              text: business!.email,
+            ),
+          ],
+
+          if (hasAddress) ...[
+            const SizedBox(height: 8),
+            _BusinessInfoRow(
+              icon: Icons.location_on_outlined,
+              text: business!.address,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _BusinessInfoRow extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const _BusinessInfoRow({
+    required this.icon,
+    required this.text,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment:
+      CrossAxisAlignment.start,
+      children: [
+        Icon(
+          icon,
+          size: 17,
+          color: Colors.white70,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 13,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -188,7 +405,8 @@ class _InvoiceHeader extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+        CrossAxisAlignment.start,
         children: [
           const Icon(
             Icons.receipt_long_rounded,
@@ -232,7 +450,8 @@ class _CustomerSection extends StatelessWidget {
       title: 'Customer Information',
       icon: Icons.person_outline_rounded,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+        CrossAxisAlignment.start,
         children: [
           Text(
             invoice.customerName,
@@ -263,13 +482,17 @@ class _CustomerSection extends StatelessWidget {
               Expanded(
                 child: _DateInfo(
                   title: 'Invoice Date',
-                  date: _formatDate(invoice.invoiceDate),
+                  date: _formatDate(
+                    invoice.invoiceDate,
+                  ),
                 ),
               ),
               Expanded(
                 child: _DateInfo(
                   title: 'Due Date',
-                  date: _formatDate(invoice.dueDate),
+                  date: _formatDate(
+                    invoice.dueDate,
+                  ),
                 ),
               ),
             ],
@@ -343,23 +566,28 @@ class _ItemsSection extends StatelessWidget {
                       child: Text(
                         item.name,
                         style: const TextStyle(
-                          fontWeight: FontWeight.w600,
+                          fontWeight:
+                          FontWeight.w600,
                         ),
                       ),
                     ),
                     Expanded(
                       child: Text(
                         item.quantity.toString(),
-                        textAlign: TextAlign.center,
+                        textAlign:
+                        TextAlign.center,
                       ),
                     ),
                     Expanded(
                       flex: 2,
                       child: Text(
-                        '${invoice.currency} ${item.total.toStringAsFixed(2)}',
-                        textAlign: TextAlign.end,
+                        '${invoice.currency} '
+                            '${item.total.toStringAsFixed(2)}',
+                        textAlign:
+                        TextAlign.end,
                         style: const TextStyle(
-                          fontWeight: FontWeight.w600,
+                          fontWeight:
+                          FontWeight.w600,
                         ),
                       ),
                     ),
@@ -391,19 +619,22 @@ class _SummarySection extends StatelessWidget {
           _SummaryRow(
             title: 'Subtotal',
             value:
-            '${invoice.currency} ${invoice.subtotal.toStringAsFixed(2)}',
+            '${invoice.currency} '
+                '${invoice.subtotal.toStringAsFixed(2)}',
           ),
           const SizedBox(height: 12),
           _SummaryRow(
             title: 'Discount',
             value:
-            '-${invoice.currency} ${invoice.discount.toStringAsFixed(2)}',
+            '-${invoice.currency} '
+                '${invoice.discount.toStringAsFixed(2)}',
           ),
           const Divider(height: 28),
           _SummaryRow(
             title: 'Total',
             value:
-            '${invoice.currency} ${invoice.total.toStringAsFixed(2)}',
+            '${invoice.currency} '
+                '${invoice.total.toStringAsFixed(2)}',
             isTotal: true,
           ),
         ],
@@ -453,13 +684,15 @@ class _SectionCard extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius:
+        BorderRadius.circular(18),
         border: Border.all(
           color: Colors.grey.shade200,
         ),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+        CrossAxisAlignment.start,
         children: [
           Row(
             children: [
@@ -473,7 +706,8 @@ class _SectionCard extends StatelessWidget {
                 title,
                 style: const TextStyle(
                   fontSize: 17,
-                  fontWeight: FontWeight.bold,
+                  fontWeight:
+                  FontWeight.bold,
                 ),
               ),
             ],
@@ -530,7 +764,8 @@ class _DateInfo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment:
+      CrossAxisAlignment.start,
       children: [
         Text(
           title,
@@ -565,16 +800,19 @@ class _SummaryRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      mainAxisAlignment:
+      MainAxisAlignment.spaceBetween,
       children: [
         Text(
           title,
           style: TextStyle(
             fontSize: isTotal ? 17 : 15,
-            fontWeight:
-            isTotal ? FontWeight.bold : FontWeight.normal,
-            color:
-            isTotal ? Colors.black : Colors.grey.shade700,
+            fontWeight: isTotal
+                ? FontWeight.bold
+                : FontWeight.normal,
+            color: isTotal
+                ? Colors.black
+                : Colors.grey.shade700,
           ),
         ),
         Text(
