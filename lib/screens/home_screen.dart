@@ -37,8 +37,24 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  double get totalRevenue {
-    return invoices.fold(
+  int get paidInvoicesCount {
+    return invoices.where(
+          (invoice) => invoice.status == 'Paid',
+    ).length;
+  }
+
+  int get pendingInvoicesCount {
+    return invoices.where(
+          (invoice) => invoice.status == 'Pending',
+    ).length;
+  }
+
+  double get paidRevenue {
+    return invoices
+        .where(
+          (invoice) => invoice.status == 'Paid',
+    )
+        .fold(
       0,
           (sum, invoice) => sum + invoice.total,
     );
@@ -149,7 +165,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Expanded(
                   child: _StatCard(
                     title: 'Paid',
-                    value: '0',
+                    value: paidInvoicesCount.toString(),
                     icon: Icons.check_circle_outline,
                   ),
                 ),
@@ -163,16 +179,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 Expanded(
                   child: _StatCard(
                     title: 'Pending',
-                    value: invoices.length.toString(),
+                    value: pendingInvoicesCount.toString(),
                     icon: Icons.pending_actions,
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: _StatCard(
-                    title: 'Revenue',
-                    value:
-                    '\$${totalRevenue.toStringAsFixed(2)}',
+                    title: 'Paid Revenue',
+                    value: '\$${paidRevenue.toStringAsFixed(2)}',
                     icon: Icons.payments_outlined,
                   ),
                 ),
@@ -215,7 +230,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 8),
 
             if (invoices.isEmpty)
-              _EmptyInvoices()
+              const _EmptyInvoices()
             else
               ...invoices.take(5).map(
                     (invoice) => _InvoiceCard(
@@ -324,6 +339,8 @@ class _InvoiceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool isPaid = invoice.status == 'Paid';
+
     return Card(
       margin: const EdgeInsets.only(
         bottom: 12,
@@ -363,13 +380,45 @@ class _InvoiceCard extends StatelessWidget {
             Text(
               invoice.customerName,
             ),
-            const SizedBox(height: 2),
-            Text(
-              _formatDate(invoice.invoiceDate),
-              style: const TextStyle(
-                color: Colors.grey,
-                fontSize: 12,
-              ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isPaid
+                        ? Colors.green.withValues(
+                      alpha: 0.1,
+                    )
+                        : Colors.orange.withValues(
+                      alpha: 0.1,
+                    ),
+                    borderRadius:
+                    BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    invoice.status,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: isPaid
+                          ? Colors.green
+                          : Colors.orange,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  _formatDate(invoice.invoiceDate),
+                  style: const TextStyle(
+                    color: Colors.grey,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -387,6 +436,8 @@ class _InvoiceCard extends StatelessWidget {
 }
 
 class _EmptyInvoices extends StatelessWidget {
+  const _EmptyInvoices();
+
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -401,7 +452,7 @@ class _EmptyInvoices extends StatelessWidget {
             Icon(
               Icons.receipt_long_outlined,
               size: 56,
-              color: Colors.grey.shade400,
+              color: Colors.grey,
             ),
             const SizedBox(height: 12),
             const Text(

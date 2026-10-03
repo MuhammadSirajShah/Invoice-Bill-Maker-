@@ -11,6 +11,7 @@ class InvoiceModel {
   final String notes;
   final List<InvoiceItem> items;
   final double discount;
+  final String status;
 
   InvoiceModel({
     required this.invoiceNumber,
@@ -23,6 +24,7 @@ class InvoiceModel {
     required this.notes,
     required this.items,
     required this.discount,
+    this.status = 'Pending',
   });
 
   double get subtotal {
@@ -34,6 +36,7 @@ class InvoiceModel {
 
   double get total {
     final result = subtotal - discount;
+
     return result < 0 ? 0 : result;
   }
 
@@ -48,6 +51,7 @@ class InvoiceModel {
       'currency': currency,
       'notes': notes,
       'discount': discount,
+      'status': status,
       'items': items.map((item) {
         return {
           'name': item.name,
@@ -58,7 +62,9 @@ class InvoiceModel {
     };
   }
 
-  factory InvoiceModel.fromJson(Map<String, dynamic> json) {
+  factory InvoiceModel.fromJson(
+      Map<String, dynamic> json,
+      ) {
     return InvoiceModel(
       invoiceNumber: json['invoiceNumber'] ?? '',
       customerName: json['customerName'] ?? '',
@@ -73,13 +79,18 @@ class InvoiceModel {
       currency: json['currency'] ?? 'USD',
       notes: json['notes'] ?? '',
       discount: (json['discount'] ?? 0).toDouble(),
-      items: (json['items'] as List? ?? []).map((item) {
-        return InvoiceItem(
-          name: item['name'] ?? '',
-          quantity: (item['quantity'] ?? 0).toDouble(),
-          price: (item['price'] ?? 0).toDouble(),
-        );
-      }).toList(),
+      status: json['status'] ?? 'Pending',
+      items: (json['items'] as List? ?? []).map(
+            (item) {
+          return InvoiceItem(
+            name: item['name'] ?? '',
+            quantity:
+            (item['quantity'] ?? 0).toDouble(),
+            price:
+            (item['price'] ?? 0).toDouble(),
+          );
+        },
+      ).toList(),
     );
   }
 }

@@ -10,9 +10,12 @@ class InvoiceStorageService {
   static Future<List<InvoiceModel>> getInvoices() async {
     final prefs = await SharedPreferences.getInstance();
 
-    final invoicesJson = prefs.getStringList(_invoicesKey);
+    final invoicesJson = prefs.getStringList(
+      _invoicesKey,
+    );
 
-    if (invoicesJson == null || invoicesJson.isEmpty) {
+    if (invoicesJson == null ||
+        invoicesJson.isEmpty) {
       return [];
     }
 
@@ -32,6 +35,82 @@ class InvoiceStorageService {
     final invoices = await getInvoices();
 
     invoices.insert(0, invoice);
+
+    final invoicesJson = invoices.map((invoice) {
+      return jsonEncode(invoice.toJson());
+    }).toList();
+
+    await prefs.setStringList(
+      _invoicesKey,
+      invoicesJson,
+    );
+  }
+
+  static Future<void> updateInvoice(
+      InvoiceModel updatedInvoice,
+      ) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final invoices = await getInvoices();
+
+    final index = invoices.indexWhere(
+          (invoice) =>
+      invoice.invoiceNumber ==
+          updatedInvoice.invoiceNumber,
+    );
+
+    if (index == -1) {
+      return;
+    }
+
+    invoices[index] = updatedInvoice;
+
+    final invoicesJson = invoices.map((invoice) {
+      return jsonEncode(invoice.toJson());
+    }).toList();
+
+    await prefs.setStringList(
+      _invoicesKey,
+      invoicesJson,
+    );
+  }
+
+  static Future<void> updateInvoiceStatus(
+      String invoiceNumber,
+      String status,
+      ) async {
+    final invoices = await getInvoices();
+
+    final index = invoices.indexWhere(
+          (invoice) =>
+      invoice.invoiceNumber ==
+          invoiceNumber,
+    );
+
+    if (index == -1) {
+      return;
+    }
+
+    final oldInvoice = invoices[index];
+
+    final updatedInvoice = InvoiceModel(
+      invoiceNumber: oldInvoice.invoiceNumber,
+      customerName: oldInvoice.customerName,
+      customerEmail: oldInvoice.customerEmail,
+      customerPhone: oldInvoice.customerPhone,
+      invoiceDate: oldInvoice.invoiceDate,
+      dueDate: oldInvoice.dueDate,
+      currency: oldInvoice.currency,
+      notes: oldInvoice.notes,
+      items: oldInvoice.items,
+      discount: oldInvoice.discount,
+      status: status,
+    );
+
+    invoices[index] = updatedInvoice;
+
+    final prefs =
+    await SharedPreferences.getInstance();
 
     final invoicesJson = invoices.map((invoice) {
       return jsonEncode(invoice.toJson());

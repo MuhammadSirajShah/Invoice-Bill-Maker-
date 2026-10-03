@@ -54,6 +54,10 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
     final query =
     searchController.text.trim().toLowerCase();
 
+    if (!mounted) {
+      return;
+    }
+
     setState(() {
       if (query.isEmpty) {
         filteredInvoices = invoices;
@@ -70,6 +74,34 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
     });
   }
 
+  Future<void> _changeInvoiceStatus(
+      InvoiceModel invoice,
+      ) async {
+    final newStatus =
+    invoice.status == 'Paid' ? 'Pending' : 'Paid';
+
+    await InvoiceStorageService.updateInvoiceStatus(
+      invoice.invoiceNumber,
+      newStatus,
+    );
+
+    await _loadInvoices();
+
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          newStatus == 'Paid'
+              ? 'Invoice marked as Paid.'
+              : 'Invoice marked as Pending.',
+        ),
+      ),
+    );
+  }
+
   Future<void> _deleteInvoice(
       InvoiceModel invoice,
       ) async {
@@ -78,6 +110,66 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
     );
 
     await _loadInvoices();
+  }
+
+  Future<void> _showInvoiceOptions(
+      InvoiceModel invoice,
+      ) async {
+    await showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        final isPaid = invoice.status == 'Paid';
+
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: Icon(
+                    isPaid
+                        ? Icons.pending_actions
+                        : Icons.check_circle_outline,
+                  ),
+                  title: Text(
+                    isPaid
+                        ? 'Mark as Pending'
+                        : 'Mark as Paid',
+                  ),
+                  onTap: () async {
+                    Navigator.pop(context);
+
+                    await _changeInvoiceStatus(
+                      invoice,
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(
+                    Icons.delete_outline,
+                    color: Colors.red,
+                  ),
+                  title: const Text(
+                    'Delete Invoice',
+                    style: TextStyle(
+                      color: Colors.red,
+                    ),
+                  ),
+                  onTap: () async {
+                    Navigator.pop(context);
+
+                    await _deleteInvoice(
+                      invoice,
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   String _formatDate(DateTime date) {
@@ -132,16 +224,15 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
             padding: const EdgeInsets.symmetric(
               horizontal: 16,
             ),
-            child: Row(
-              children: [
-                Text(
-                  '${filteredInvoices.length} Invoice(s)',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                '${filteredInvoices.length} Invoice(s)',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
                 ),
-              ],
+              ),
             ),
           ),
 
@@ -161,6 +252,9 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
                 final invoice =
                 filteredInvoices[index];
 
+                final isPaid =
+                    invoice.status == 'Paid';
+
                 return Dismissible(
                   key: ValueKey(
                     invoice.invoiceNumber,
@@ -178,7 +272,8 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
                     ),
                     alignment:
                     Alignment.centerRight,
-                    decoration: BoxDecoration(
+                    decoration:
+                    BoxDecoration(
                       color: Colors.red,
                       borderRadius:
                       BorderRadius.circular(
@@ -247,12 +342,10 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
                       bottom: 12,
                     ),
                     elevation: 0,
-                    child: ListTile(
-                      contentPadding:
-                      const EdgeInsets
-                          .symmetric(
-                        horizontal: 16,
-                        vertical: 8,
+                    child: InkWell(
+                      borderRadius:
+                      BorderRadius.circular(
+                        16,
                       ),
                       onTap: () {
                         Navigator.push(
@@ -265,70 +358,221 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
                           ),
                         );
                       },
-                      leading: Container(
-                        width: 46,
-                        height: 46,
-                        decoration:
-                        BoxDecoration(
-                          color: Colors.indigo
-                              .withValues(
-                            alpha: 0.1,
-                          ),
-                          borderRadius:
-                          BorderRadius
-                              .circular(
-                            12,
-                          ),
+                      child: Padding(
+                        padding:
+                        const EdgeInsets.all(
+                          14,
                         ),
-                        child: const Icon(
-                          Icons.receipt_long,
-                          color:
-                          Colors.indigo,
-                        ),
-                      ),
-                      title: Text(
-                        invoice.invoiceNumber,
-                        style:
-                        const TextStyle(
-                          fontWeight:
-                          FontWeight.bold,
-                        ),
-                      ),
-                      subtitle: Column(
-                        crossAxisAlignment:
-                        CrossAxisAlignment
-                            .start,
-                        children: [
-                          const SizedBox(
-                            height: 4,
-                          ),
-                          Text(
-                            invoice.customerName,
-                          ),
-                          const SizedBox(
-                            height: 2,
-                          ),
-                          Text(
-                            _formatDate(
-                              invoice
-                                  .invoiceDate,
+                        child: Row(
+                          crossAxisAlignment:
+                          CrossAxisAlignment
+                              .center,
+                          children: [
+                            // Invoice icon
+                            Container(
+                              width: 46,
+                              height: 46,
+                              decoration:
+                              BoxDecoration(
+                                color: Colors
+                                    .indigo
+                                    .withValues(
+                                  alpha: 0.1,
+                                ),
+                                borderRadius:
+                                BorderRadius
+                                    .circular(
+                                  12,
+                                ),
+                              ),
+                              child: const Icon(
+                                Icons.receipt_long,
+                                color:
+                                Colors.indigo,
+                              ),
                             ),
-                            style:
-                            const TextStyle(
-                              color:
-                              Colors.grey,
-                              fontSize: 12,
+
+                            const SizedBox(
+                              width: 14,
                             ),
-                          ),
-                        ],
-                      ),
-                      trailing: Text(
-                        '${invoice.currency} '
-                            '${invoice.total.toStringAsFixed(2)}',
-                        style:
-                        const TextStyle(
-                          fontWeight:
-                          FontWeight.bold,
+
+                            // Invoice information
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment:
+                                CrossAxisAlignment
+                                    .start,
+                                mainAxisSize:
+                                MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    invoice
+                                        .invoiceNumber,
+                                    style:
+                                    const TextStyle(
+                                      fontWeight:
+                                      FontWeight
+                                          .bold,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+
+                                  const SizedBox(
+                                    height: 4,
+                                  ),
+
+                                  Text(
+                                    invoice
+                                        .customerName,
+                                    maxLines: 1,
+                                    overflow:
+                                    TextOverflow
+                                        .ellipsis,
+                                    style:
+                                    const TextStyle(
+                                      fontSize: 13,
+                                    ),
+                                  ),
+
+                                  const SizedBox(
+                                    height: 6,
+                                  ),
+
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding:
+                                        const EdgeInsets
+                                            .symmetric(
+                                          horizontal:
+                                          8,
+                                          vertical:
+                                          4,
+                                        ),
+                                        decoration:
+                                        BoxDecoration(
+                                          color: isPaid
+                                              ? Colors
+                                              .green
+                                              .withValues(
+                                            alpha:
+                                            0.1,
+                                          )
+                                              : Colors
+                                              .orange
+                                              .withValues(
+                                            alpha:
+                                            0.1,
+                                          ),
+                                          borderRadius:
+                                          BorderRadius
+                                              .circular(
+                                            20,
+                                          ),
+                                        ),
+                                        child:
+                                        Text(
+                                          invoice
+                                              .status,
+                                          style:
+                                          TextStyle(
+                                            color: isPaid
+                                                ? Colors
+                                                .green
+                                                : Colors
+                                                .orange,
+                                            fontSize:
+                                            11,
+                                            fontWeight:
+                                            FontWeight
+                                                .bold,
+                                          ),
+                                        ),
+                                      ),
+
+                                      const SizedBox(
+                                        width: 8,
+                                      ),
+
+                                      Flexible(
+                                        child:
+                                        Text(
+                                          _formatDate(
+                                            invoice
+                                                .invoiceDate,
+                                          ),
+                                          style:
+                                          const TextStyle(
+                                            color:
+                                            Colors.grey,
+                                            fontSize:
+                                            12,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            const SizedBox(
+                              width: 8,
+                            ),
+
+                            // Amount + menu
+                            Column(
+                              mainAxisSize:
+                              MainAxisSize.min,
+                              crossAxisAlignment:
+                              CrossAxisAlignment
+                                  .end,
+                              children: [
+                                Text(
+                                  '${invoice.currency} '
+                                      '${invoice.total.toStringAsFixed(2)}',
+                                  style:
+                                  const TextStyle(
+                                    fontWeight:
+                                    FontWeight
+                                        .bold,
+                                    fontSize: 13,
+                                  ),
+                                ),
+
+                                const SizedBox(
+                                  height: 4,
+                                ),
+
+                                SizedBox(
+                                  width: 32,
+                                  height: 32,
+                                  child:
+                                  IconButton(
+                                    padding:
+                                    EdgeInsets
+                                        .zero,
+                                    constraints:
+                                    const BoxConstraints(),
+                                    visualDensity:
+                                    VisualDensity
+                                        .compact,
+                                    onPressed: () {
+                                      _showInvoiceOptions(
+                                        invoice,
+                                      );
+                                    },
+                                    icon:
+                                    const Icon(
+                                      Icons
+                                          .more_vert,
+                                      size: 20,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -343,7 +587,8 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
   }
 }
 
-class _EmptyInvoiceHistory extends StatelessWidget {
+class _EmptyInvoiceHistory
+    extends StatelessWidget {
   const _EmptyInvoiceHistory();
 
   @override
