@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+
+import '../models/customer_model.dart';
 import '../models/invoice_item_model.dart';
 import '../models/invoice_model.dart';
+import '../services/customer_storage_service.dart';
 import '../services/invoice_storage_service.dart';
 import 'invoice_preview_screen.dart';
 
@@ -8,33 +11,74 @@ class CreateInvoiceScreen extends StatefulWidget {
   const CreateInvoiceScreen({super.key});
 
   @override
-  State<CreateInvoiceScreen> createState() => _CreateInvoiceScreenState();
+  State<CreateInvoiceScreen> createState() =>
+      _CreateInvoiceScreenState();
 }
 
-class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
+class _CreateInvoiceScreenState
+    extends State<CreateInvoiceScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  final TextEditingController invoiceNumberController = TextEditingController();
+  final invoiceNumberController =
+  TextEditingController();
 
-  final TextEditingController customerNameController = TextEditingController();
+  final customerNameController =
+  TextEditingController();
 
-  final TextEditingController customerEmailController = TextEditingController();
+  final customerEmailController =
+  TextEditingController();
 
-  final TextEditingController customerPhoneController = TextEditingController();
+  final customerPhoneController =
+  TextEditingController();
 
-  final TextEditingController notesController = TextEditingController();
+  final notesController =
+  TextEditingController();
 
-  final TextEditingController discountController = TextEditingController(text: '0');
+  final discountController =
+  TextEditingController(text: '0');
 
   DateTime invoiceDate = DateTime.now();
 
-  DateTime dueDate = DateTime.now().add(
-    const Duration(days: 7),
-  );
+  DateTime dueDate =
+  DateTime.now().add(const Duration(days: 7));
 
   String selectedCurrency = 'USD';
 
-  final List<InvoiceItem> items = [];
+  List<InvoiceItem> items = [];
+
+  List<CustomerModel> savedCustomers = [];
+
+  @override
+  void initState() {
+    super.initState();
+
+    _loadCustomers();
+  }
+
+  @override
+  void dispose() {
+    invoiceNumberController.dispose();
+    customerNameController.dispose();
+    customerEmailController.dispose();
+    customerPhoneController.dispose();
+    notesController.dispose();
+    discountController.dispose();
+
+    super.dispose();
+  }
+
+  Future<void> _loadCustomers() async {
+    final customers =
+    await CustomerStorageService.getCustomers();
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      savedCustomers = customers;
+    });
+  }
 
   double get subtotal {
     return items.fold(
@@ -44,152 +88,102 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
   }
 
   double get discount {
-    return double.tryParse(discountController.text) ?? 0;
+    return double.tryParse(
+      discountController.text.trim(),
+    ) ??
+        0;
   }
 
   double get total {
     final result = subtotal - discount;
+
     return result < 0 ? 0 : result;
   }
 
-  void addItem() {
-    _showItemDialog();
-  }
-
-  void editItem(int index) {
-    _showItemDialog(
-      existingItem: items[index],
-      index: index,
-    );
-  }
-
-  void deleteItem(int index) {
-    setState(() {
-      items.removeAt(index);
-    });
-  }
-
-  void _showItemDialog({
-    InvoiceItem? existingItem,
-    int? index,
-  }) {
-    final itemNameController = TextEditingController(
-      text: existingItem?.name ?? '',
-    );
-
-    final quantityController = TextEditingController(
-      text: existingItem?.quantity.toString() ?? '1',
-    );
-
-    final priceController = TextEditingController(
-      text: existingItem?.price.toString() ?? '',
-    );
-
-    showDialog(
+  Future<void> _selectCustomer() async {
+    final customer =
+    await showModalBottomSheet<CustomerModel>(
       context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: Text(
-            existingItem == null ? 'Add Item' : 'Edit Item',
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+      isScrollControlled: true,
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: ListView(
+              shrinkWrap: true,
               children: [
-                TextField(
-                  controller: itemNameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Item Name',
-                    hintText: 'e.g. Flutter App Development',
-                    prefixIcon: Icon(
-                      Icons.shopping_bag_outlined,
-                    ),
-                    border: OutlineInputBorder(),
+                const Text(
+                  'Select Customer',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: quantityController,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  decoration: const InputDecoration(
-                    labelText: 'Quantity',
-                    prefixIcon: Icon(
-                      Icons.numbers_rounded,
-                    ),
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: priceController,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  decoration: const InputDecoration(
-                    labelText: 'Price',
-                    prefixIcon: Icon(
-                      Icons.attach_money_rounded,
-                    ),
-                    border: OutlineInputBorder(),
-                  ),
+
+                const SizedBox(height: 16),
+
+                ...savedCustomers.map(
+                      (customer) {
+                    return ListTile(
+                      contentPadding:
+                      const EdgeInsets.symmetric(
+                        vertical: 4,
+                      ),
+                      leading: CircleAvatar(
+                        child: Text(
+                          customer.name
+                              .trim()
+                              .isNotEmpty
+                              ? customer.name
+                              .trim()[0]
+                              .toUpperCase()
+                              : '?',
+                        ),
+                      ),
+                      title: Text(
+                        customer.name,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      subtitle: Text(
+                        customer.email.isNotEmpty
+                            ? customer.email
+                            : customer.phone,
+                      ),
+                      onTap: () {
+                        Navigator.pop(
+                          context,
+                          customer,
+                        );
+                      },
+                    );
+                  },
                 ),
               ],
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(dialogContext);
-              },
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                final name = itemNameController.text.trim();
-
-                final quantity =
-                    double.tryParse(quantityController.text) ?? 0;
-
-                final price =
-                    double.tryParse(priceController.text) ?? 0;
-
-                if (name.isEmpty) {
-                  return;
-                }
-
-                if (quantity <= 0 || price < 0) {
-                  return;
-                }
-
-                final newItem = InvoiceItem(
-                  name: name,
-                  quantity: quantity,
-                  price: price,
-                );
-
-                setState(() {
-                  if (index == null) {
-                    items.add(newItem);
-                  } else {
-                    items[index] = newItem;
-                  }
-                });
-
-                Navigator.pop(dialogContext);
-              },
-              child: Text(
-                existingItem == null ? 'Add' : 'Update',
-              ),
-            ),
-          ],
         );
       },
     );
+
+    if (customer == null) {
+      return;
+    }
+
+    setState(() {
+      customerNameController.text =
+          customer.name;
+
+      customerEmailController.text =
+          customer.email;
+
+      customerPhoneController.text =
+          customer.phone;
+    });
   }
 
-  Future<void> selectInvoiceDate() async {
+  Future<void> _selectInvoiceDate() async {
     final selectedDate = await showDatePicker(
       context: context,
       initialDate: invoiceDate,
@@ -197,43 +191,223 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
       lastDate: DateTime(2100),
     );
 
-    if (selectedDate != null) {
-      setState(() {
-        invoiceDate = selectedDate;
-
-        if (dueDate.isBefore(invoiceDate)) {
-          dueDate = invoiceDate.add(
-            const Duration(days: 7),
-          );
-        }
-      });
+    if (selectedDate == null) {
+      return;
     }
+
+    setState(() {
+      invoiceDate = selectedDate;
+    });
   }
 
-  Future<void> selectDueDate() async {
+  Future<void> _selectDueDate() async {
     final selectedDate = await showDatePicker(
       context: context,
-      initialDate: dueDate.isBefore(invoiceDate)
-          ? invoiceDate
-          : dueDate,
+      initialDate: dueDate,
       firstDate: invoiceDate,
       lastDate: DateTime(2100),
     );
 
-    if (selectedDate != null) {
-      setState(() {
-        dueDate = selectedDate;
-      });
+    if (selectedDate == null) {
+      return;
     }
+
+    setState(() {
+      dueDate = selectedDate;
+    });
   }
 
-  String formatDate(DateTime date) {
+  String _formatDate(DateTime date) {
     return '${date.day.toString().padLeft(2, '0')}/'
         '${date.month.toString().padLeft(2, '0')}/'
         '${date.year}';
   }
 
-  void generateInvoice() async {
+  Future<void> _showItemDialog({
+    InvoiceItem? existingItem,
+    int? index,
+  }) async {
+    final nameController = TextEditingController(
+      text: existingItem?.name ?? '',
+    );
+
+    final quantityController =
+    TextEditingController(
+      text: existingItem?.quantity
+          .toString() ??
+          '1',
+    );
+
+    final priceController =
+    TextEditingController(
+      text: existingItem?.price
+          .toString() ??
+          '',
+    );
+
+    final formKey = GlobalKey<FormState>();
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(
+            existingItem == null
+                ? 'Add Item'
+                : 'Edit Item',
+          ),
+          content: Form(
+            key: formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: nameController,
+                    textInputAction:
+                    TextInputAction.next,
+                    decoration:
+                    const InputDecoration(
+                      labelText: 'Item / Service Name',
+                      prefixIcon: Icon(
+                        Icons.inventory_2_outlined,
+                      ),
+                    ),
+                    validator: (value) {
+                      if (value == null ||
+                          value.trim().isEmpty) {
+                        return 'Enter item name';
+                      }
+
+                      return null;
+                    },
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  TextFormField(
+                    controller:
+                    quantityController,
+                    keyboardType:
+                    const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    textInputAction:
+                    TextInputAction.next,
+                    decoration:
+                    const InputDecoration(
+                      labelText: 'Quantity',
+                      prefixIcon: Icon(
+                        Icons.numbers,
+                      ),
+                    ),
+                    validator: (value) {
+                      final quantity =
+                      double.tryParse(
+                        value?.trim() ?? '',
+                      );
+
+                      if (quantity == null ||
+                          quantity <= 0) {
+                        return 'Enter valid quantity';
+                      }
+
+                      return null;
+                    },
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  TextFormField(
+                    controller: priceController,
+                    keyboardType:
+                    const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration:
+                    const InputDecoration(
+                      labelText: 'Price',
+                      prefixIcon: Icon(
+                        Icons.attach_money,
+                      ),
+                    ),
+                    validator: (value) {
+                      final price =
+                      double.tryParse(
+                        value?.trim() ?? '',
+                      );
+
+                      if (price == null ||
+                          price < 0) {
+                        return 'Enter valid price';
+                      }
+
+                      return null;
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text(
+                'Cancel',
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (!formKey.currentState!
+                    .validate()) {
+                  return;
+                }
+
+                final item = InvoiceItem(
+                  name: nameController.text.trim(),
+                  quantity: double.parse(
+                    quantityController.text.trim(),
+                  ),
+                  price: double.parse(
+                    priceController.text.trim(),
+                  ),
+                );
+
+                setState(() {
+                  if (index != null) {
+                    items[index] = item;
+                  } else {
+                    items.add(item);
+                  }
+                });
+
+                Navigator.pop(context);
+              },
+              child: Text(
+                existingItem == null
+                    ? 'Add'
+                    : 'Update',
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    nameController.dispose();
+    quantityController.dispose();
+    priceController.dispose();
+  }
+
+  void _deleteItem(int index) {
+    setState(() {
+      items.removeAt(index);
+    });
+  }
+
+  Future<void> _generateInvoice() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -250,14 +424,15 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
       return;
     }
 
-    final discount =
-        double.tryParse(discountController.text.trim()) ?? 0;
-
     final invoice = InvoiceModel(
-      invoiceNumber: invoiceNumberController.text.trim(),
-      customerName: customerNameController.text.trim(),
-      customerEmail: customerEmailController.text.trim(),
-      customerPhone: customerPhoneController.text.trim(),
+      invoiceNumber:
+      invoiceNumberController.text.trim(),
+      customerName:
+      customerNameController.text.trim(),
+      customerEmail:
+      customerEmailController.text.trim(),
+      customerPhone:
+      customerPhoneController.text.trim(),
       invoiceDate: invoiceDate,
       dueDate: dueDate,
       currency: selectedCurrency,
@@ -278,9 +453,10 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => InvoicePreviewScreen(
-            invoice: invoice,
-          ),
+          builder: (context) =>
+              InvoicePreviewScreen(
+                invoice: invoice,
+              ),
         ),
       );
     } catch (e) {
@@ -299,18 +475,6 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
   }
 
   @override
-  void dispose() {
-    invoiceNumberController.dispose();
-    customerNameController.dispose();
-    customerEmailController.dispose();
-    customerPhoneController.dispose();
-    notesController.dispose();
-    discountController.dispose();
-
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -323,213 +487,234 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
       ),
       body: Form(
         key: _formKey,
-        child: SingleChildScrollView(
+        child: ListView(
           padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Invoice Details',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+          children: [
+            // Invoice Details
+            const Text(
+              'Invoice Details',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            TextFormField(
+              controller: invoiceNumberController,
+              decoration: const InputDecoration(
+                labelText: 'Invoice Number',
+                prefixIcon: Icon(
+                  Icons.receipt_long_outlined,
                 ),
+                border: OutlineInputBorder(),
               ),
-              const SizedBox(height: 14),
+              validator: (value) {
+                if (value == null ||
+                    value.trim().isEmpty) {
+                  return 'Enter invoice number';
+                }
 
-              TextFormField(
-                controller: invoiceNumberController,
-                decoration: const InputDecoration(
-                  labelText: 'Invoice Number',
-                  hintText: 'e.g. INV-001',
-                  prefixIcon: Icon(
-                    Icons.receipt_long_outlined,
+                return null;
+              },
+            ),
+
+            const SizedBox(height: 12),
+
+            Row(
+              children: [
+                Expanded(
+                  child: _DateField(
+                    label: 'Invoice Date',
+                    value:
+                    _formatDate(invoiceDate),
+                    onTap: _selectInvoiceDate,
                   ),
-                  border: OutlineInputBorder(),
                 ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Please enter invoice number';
-                  }
-                  return null;
-                },
-              ),
-
-              const SizedBox(height: 12),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: _DateField(
-                      title: 'Invoice Date',
-                      date: formatDate(invoiceDate),
-                      icon: Icons.calendar_today_outlined,
-                      onTap: selectInvoiceDate,
-                    ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _DateField(
+                    label: 'Due Date',
+                    value:
+                    _formatDate(dueDate),
+                    onTap: _selectDueDate,
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _DateField(
-                      title: 'Due Date',
-                      date: formatDate(dueDate),
-                      icon: Icons.event_outlined,
-                      onTap: selectDueDate,
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 12),
-
-              DropdownButtonFormField<String>(
-                initialValue: selectedCurrency,
-                decoration: const InputDecoration(
-                  labelText: 'Currency',
-                  prefixIcon: Icon(
-                    Icons.currency_exchange_rounded,
-                  ),
-                  border: OutlineInputBorder(),
                 ),
-                items: const [
-                  DropdownMenuItem(
-                    value: 'USD',
-                    child: Text('USD - US Dollar'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'EUR',
-                    child: Text('EUR - Euro'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'GBP',
-                    child: Text('GBP - British Pound'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'PKR',
-                    child: Text('PKR - Pakistani Rupee'),
-                  ),
-                ],
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() {
-                      selectedCurrency = value;
-                    });
-                  }
-                },
-              ),
+              ],
+            ),
 
-              const SizedBox(height: 28),
+            const SizedBox(height: 12),
 
-              const Text(
-                'Customer Information',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+            DropdownButtonFormField<String>(
+              value: selectedCurrency,
+              decoration:
+              const InputDecoration(
+                labelText: 'Currency',
+                prefixIcon: Icon(
+                  Icons.currency_exchange,
                 ),
+                border: OutlineInputBorder(),
               ),
-
-              const SizedBox(height: 14),
-
-              TextFormField(
-                controller: customerNameController,
-                decoration: const InputDecoration(
-                  labelText: 'Customer Name',
-                  hintText: 'Enter customer name',
-                  prefixIcon: Icon(
-                    Icons.person_outline_rounded,
-                  ),
-                  border: OutlineInputBorder(),
+              items: const [
+                DropdownMenuItem(
+                  value: 'USD',
+                  child: Text('USD'),
                 ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Please enter customer name';
-                  }
-                  return null;
-                },
-              ),
-
-              const SizedBox(height: 12),
-
-              TextFormField(
-                controller: customerEmailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  hintText: 'customer@example.com',
-                  prefixIcon: Icon(
-                    Icons.email_outlined,
-                  ),
-                  border: OutlineInputBorder(),
+                DropdownMenuItem(
+                  value: 'EUR',
+                  child: Text('EUR'),
                 ),
-              ),
-
-              const SizedBox(height: 12),
-
-              TextFormField(
-                controller: customerPhoneController,
-                keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(
-                  labelText: 'Phone',
-                  hintText: 'Enter phone number',
-                  prefixIcon: Icon(
-                    Icons.phone_outlined,
-                  ),
-                  border: OutlineInputBorder(),
+                DropdownMenuItem(
+                  value: 'GBP',
+                  child: Text('GBP'),
                 ),
-              ),
+                DropdownMenuItem(
+                  value: 'PKR',
+                  child: Text('PKR'),
+                ),
+              ],
+              onChanged: (value) {
+                if (value == null) {
+                  return;
+                }
 
-              const SizedBox(height: 28),
+                setState(() {
+                  selectedCurrency = value;
+                });
+              },
+            ),
 
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Items',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+            const SizedBox(height: 28),
+
+            // Customer Information
+            Row(
+              mainAxisAlignment:
+              MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Customer Information',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
                   ),
-                  OutlinedButton.icon(
-                    onPressed: addItem,
+                ),
+                if (savedCustomers.isNotEmpty)
+                  TextButton.icon(
+                    onPressed: _selectCustomer,
                     icon: const Icon(
-                      Icons.add_rounded,
+                      Icons.person_search,
                     ),
-                    label: const Text('Add Item'),
+                    label: const Text(
+                      'Select Saved',
+                    ),
                   ),
-                ],
+              ],
+            ),
+
+            const SizedBox(height: 12),
+
+            TextFormField(
+              controller: customerNameController,
+              textInputAction:
+              TextInputAction.next,
+              decoration: const InputDecoration(
+                labelText: 'Customer Name',
+                prefixIcon: Icon(
+                  Icons.person_outline,
+                ),
+                border: OutlineInputBorder(),
               ),
+              validator: (value) {
+                if (value == null ||
+                    value.trim().isEmpty) {
+                  return 'Enter customer name';
+                }
 
-              const SizedBox(height: 12),
+                return null;
+              },
+            ),
 
-              if (items.isEmpty)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: Colors.grey.shade200,
-                    ),
+            const SizedBox(height: 12),
+
+            TextFormField(
+              controller: customerEmailController,
+              keyboardType:
+              TextInputType.emailAddress,
+              textInputAction:
+              TextInputAction.next,
+              decoration: const InputDecoration(
+                labelText: 'Customer Email',
+                prefixIcon: Icon(
+                  Icons.email_outlined,
+                ),
+                border: OutlineInputBorder(),
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            TextFormField(
+              controller: customerPhoneController,
+              keyboardType:
+              TextInputType.phone,
+              decoration: const InputDecoration(
+                labelText: 'Customer Phone',
+                prefixIcon: Icon(
+                  Icons.phone_outlined,
+                ),
+                border: OutlineInputBorder(),
+              ),
+            ),
+
+            const SizedBox(height: 28),
+
+            // Items
+            Row(
+              mainAxisAlignment:
+              MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Items / Services',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
                   ),
-                  child: const Column(
+                ),
+                TextButton.icon(
+                  onPressed: () {
+                    _showItemDialog();
+                  },
+                  icon: const Icon(
+                    Icons.add,
+                  ),
+                  label: const Text(
+                    'Add Item',
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 8),
+
+            if (items.isEmpty)
+              Card(
+                elevation: 0,
+                child: Padding(
+                  padding:
+                  const EdgeInsets.all(24),
+                  child: Column(
                     children: [
                       Icon(
-                        Icons.shopping_cart_outlined,
-                        size: 45,
-                        color: Colors.grey,
+                        Icons
+                            .shopping_cart_outlined,
+                        size: 48,
+                        color:
+                        Colors.grey.shade400,
                       ),
-                      SizedBox(height: 10),
-                      Text(
+                      const SizedBox(height: 8),
+                      const Text(
                         'No items added',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        'Tap "Add Item" to add a product or service.',
-                        textAlign: TextAlign.center,
                         style: TextStyle(
                           color: Colors.grey,
                         ),
@@ -537,222 +722,223 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                     ],
                   ),
                 ),
+              )
+            else
+              ...items.asMap().entries.map(
+                    (entry) {
+                  final index = entry.key;
+                  final item = entry.value;
 
-              if (items.isNotEmpty)
-                ...List.generate(
-                  items.length,
-                      (index) {
-                    final item = items[index];
-
-                    return Container(
-                      margin: const EdgeInsets.only(
-                        bottom: 10,
-                      ),
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: Colors.grey.shade200,
+                  return Card(
+                    elevation: 0,
+                    margin:
+                    const EdgeInsets.only(
+                      bottom: 10,
+                    ),
+                    child: ListTile(
+                      title: Text(
+                        item.name,
+                        style: const TextStyle(
+                          fontWeight:
+                          FontWeight.bold,
                         ),
                       ),
-                      child: Row(
+                      subtitle: Text(
+                        '${item.quantity} × '
+                            '${selectedCurrency} '
+                            '${item.price.toStringAsFixed(2)}',
+                      ),
+                      trailing: Row(
+                        mainAxisSize:
+                        MainAxisSize.min,
                         children: [
-                          Container(
-                            width: 45,
-                            height: 45,
-                            decoration: BoxDecoration(
-                              color: Colors.indigo.withValues(
-                                alpha: 0.1,
-                              ),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Icon(
-                              Icons.shopping_bag_outlined,
-                              color: Colors.indigo,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment:
-                              CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  item.name,
-                                  style: const TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  '${item.quantity} × \$${item.price.toStringAsFixed(2)}',
-                                  style: TextStyle(
-                                    color: Colors.grey.shade600,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  '\$${item.total.toStringAsFixed(2)}',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
+                          Text(
+                            '$selectedCurrency '
+                                '${item.total.toStringAsFixed(2)}',
+                            style:
+                            const TextStyle(
+                              fontWeight:
+                              FontWeight.bold,
                             ),
                           ),
                           IconButton(
-                            onPressed: () => editItem(index),
+                            onPressed: () {
+                              _showItemDialog(
+                                existingItem:
+                                item,
+                                index: index,
+                              );
+                            },
                             icon: const Icon(
                               Icons.edit_outlined,
                             ),
                           ),
                           IconButton(
-                            onPressed: () => deleteItem(index),
+                            onPressed: () {
+                              _deleteItem(index);
+                            },
                             icon: const Icon(
-                              Icons.delete_outline_rounded,
+                              Icons
+                                  .delete_outline,
+                              color: Colors.red,
                             ),
                           ),
                         ],
                       ),
-                    );
-                  },
-                ),
-
-              const SizedBox(height: 18),
-
-              const Text(
-                'Discount',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              TextFormField(
-                controller: discountController,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                onChanged: (_) {
-                  setState(() {});
+                    ),
+                  );
                 },
-                decoration: const InputDecoration(
-                  labelText: 'Discount',
-                  hintText: '0',
-                  prefixIcon: Icon(
-                    Icons.discount_outlined,
-                  ),
-                  border: OutlineInputBorder(),
-                ),
               ),
 
-              const SizedBox(height: 28),
+            const SizedBox(height: 20),
 
-              const Text(
-                'Notes',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+            // Discount
+            const Text(
+              'Discount',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
               ),
+            ),
 
-              const SizedBox(height: 12),
+            const SizedBox(height: 12),
 
-              TextFormField(
-                controller: notesController,
-                maxLines: 4,
-                decoration: const InputDecoration(
-                  labelText: 'Notes',
-                  hintText: 'Thank you for your business...',
-                  alignLabelWithHint: true,
-                  prefixIcon: Padding(
-                    padding: EdgeInsets.only(
-                      bottom: 55,
-                    ),
-                    child: Icon(
-                      Icons.notes_outlined,
-                    ),
-                  ),
-                  border: OutlineInputBorder(),
-                ),
+            TextFormField(
+              controller: discountController,
+              keyboardType:
+              const TextInputType.numberWithOptions(
+                decimal: true,
               ),
-
-              const SizedBox(height: 28),
-
-              const Text(
-                'Invoice Summary',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+              onChanged: (_) {
+                setState(() {});
+              },
+              decoration: InputDecoration(
+                labelText: 'Discount',
+                prefixText:
+                '$selectedCurrency ',
+                prefixIcon: const Icon(
+                  Icons.discount_outlined,
                 ),
+                border:
+                const OutlineInputBorder(),
               ),
+              validator: (value) {
+                final discountValue =
+                double.tryParse(
+                  value?.trim() ?? '',
+                );
 
-              const SizedBox(height: 12),
+                if (discountValue == null ||
+                    discountValue < 0) {
+                  return 'Enter valid discount';
+                }
 
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: Colors.grey.shade200,
-                  ),
-                ),
+                return null;
+              },
+            ),
+
+            const SizedBox(height: 28),
+
+            // Notes
+            const Text(
+              'Notes',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            TextFormField(
+              controller: notesController,
+              maxLines: 4,
+              decoration: const InputDecoration(
+                hintText:
+                'Add notes or payment terms...',
+                border: OutlineInputBorder(),
+              ),
+            ),
+
+            const SizedBox(height: 28),
+
+            // Invoice Summary
+            Card(
+              elevation: 0,
+              child: Padding(
+                padding:
+                const EdgeInsets.all(16),
                 child: Column(
                   children: [
+                    const Align(
+                      alignment:
+                      Alignment.centerLeft,
+                      child: Text(
+                        'Invoice Summary',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight:
+                          FontWeight.bold,
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
                     _SummaryRow(
                       title: 'Subtotal',
                       value:
-                      '$selectedCurrency ${subtotal.toStringAsFixed(2)}',
+                      '$selectedCurrency '
+                          '${subtotal.toStringAsFixed(2)}',
                     ),
+
                     const SizedBox(height: 10),
+
                     _SummaryRow(
                       title: 'Discount',
                       value:
-                      '-$selectedCurrency ${discount.toStringAsFixed(2)}',
+                      '-$selectedCurrency '
+                          '${discount.toStringAsFixed(2)}',
                     ),
+
                     const Divider(
                       height: 24,
                     ),
+
                     _SummaryRow(
                       title: 'Total',
                       value:
-                      '$selectedCurrency ${total.toStringAsFixed(2)}',
+                      '$selectedCurrency '
+                          '${total.toStringAsFixed(2)}',
                       isTotal: true,
                     ),
                   ],
                 ),
               ),
+            ),
 
-              const SizedBox(height: 28),
+            const SizedBox(height: 24),
 
-              SizedBox(
-                width: double.infinity,
-                height: 55,
-                child: ElevatedButton.icon(
-                  onPressed: generateInvoice,
-                  icon: const Icon(
-                    Icons.receipt_long_rounded,
-                  ),
-                  label: const Text(
-                    'Generate Invoice',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+            SizedBox(
+              width: double.infinity,
+              height: 54,
+              child: ElevatedButton.icon(
+                onPressed: _generateInvoice,
+                icon: const Icon(
+                  Icons.receipt_long,
+                ),
+                label: const Text(
+                  'Generate Invoice',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
+            ),
 
-              const SizedBox(height: 20),
-            ],
-          ),
+            const SizedBox(height: 24),
+          ],
         ),
       ),
     );
@@ -760,15 +946,13 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
 }
 
 class _DateField extends StatelessWidget {
-  final String title;
-  final String date;
-  final IconData icon;
+  final String label;
+  final String value;
   final VoidCallback onTap;
 
   const _DateField({
-    required this.title,
-    required this.date,
-    required this.icon,
+    required this.label,
+    required this.value,
     required this.onTap,
   });
 
@@ -776,19 +960,20 @@ class _DateField extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius:
+      BorderRadius.circular(12),
       child: InputDecorator(
         decoration: InputDecoration(
-          labelText: title,
-          prefixIcon: Icon(icon),
-          border: const OutlineInputBorder(),
-        ),
-        child: Text(
-          date,
-          style: const TextStyle(
-            fontSize: 14,
+          labelText: label,
+          prefixIcon: const Icon(
+            Icons.calendar_today_outlined,
+          ),
+          border: OutlineInputBorder(
+            borderRadius:
+            BorderRadius.circular(12),
           ),
         ),
+        child: Text(value),
       ),
     );
   }
@@ -808,22 +993,22 @@ class _SummaryRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      mainAxisAlignment:
+      MainAxisAlignment.spaceBetween,
       children: [
         Text(
           title,
           style: TextStyle(
-            fontSize: isTotal ? 17 : 15,
-            fontWeight:
-            isTotal ? FontWeight.bold : FontWeight.normal,
-            color:
-            isTotal ? Colors.black : Colors.grey.shade700,
+            fontSize: isTotal ? 16 : 14,
+            fontWeight: isTotal
+                ? FontWeight.bold
+                : FontWeight.normal,
           ),
         ),
         Text(
           value,
           style: TextStyle(
-            fontSize: isTotal ? 19 : 15,
+            fontSize: isTotal ? 18 : 14,
             fontWeight: FontWeight.bold,
           ),
         ),

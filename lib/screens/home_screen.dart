@@ -6,6 +6,7 @@ import 'create_invoice_screen.dart';
 import 'customers_screen.dart';
 import 'invoice_preview_screen.dart';
 import 'invoices_screen.dart';
+import 'products_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -246,6 +247,16 @@ class _HomeScreenState extends State<HomeScreen> {
               MaterialPageRoute(
                 builder: (context) =>
                 const CustomersScreen(),
+              ),
+            );
+          }
+
+          if (index == 2) {
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                const ProductsScreen(),
               ),
             );
           }
