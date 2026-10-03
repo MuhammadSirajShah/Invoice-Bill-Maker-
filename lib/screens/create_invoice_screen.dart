@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import '../models/customer_model.dart';
 import '../models/invoice_item_model.dart';
 import '../models/invoice_model.dart';
+import '../models/product_model.dart';
 import '../services/customer_storage_service.dart';
 import '../services/invoice_storage_service.dart';
+import '../services/product_storage_service.dart';
 import 'invoice_preview_screen.dart';
 
 class CreateInvoiceScreen extends StatefulWidget {
@@ -19,28 +21,31 @@ class _CreateInvoiceScreenState
     extends State<CreateInvoiceScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  final invoiceNumberController =
+  final TextEditingController invoiceNumberController =
   TextEditingController();
 
-  final customerNameController =
+  final TextEditingController customerNameController =
   TextEditingController();
 
-  final customerEmailController =
+  final TextEditingController customerEmailController =
   TextEditingController();
 
-  final customerPhoneController =
+  final TextEditingController customerPhoneController =
   TextEditingController();
 
-  final notesController =
+  final TextEditingController notesController =
   TextEditingController();
 
-  final discountController =
-  TextEditingController(text: '0');
+  final TextEditingController discountController =
+  TextEditingController(
+    text: '0',
+  );
 
   DateTime invoiceDate = DateTime.now();
 
-  DateTime dueDate =
-  DateTime.now().add(const Duration(days: 7));
+  DateTime dueDate = DateTime.now().add(
+    const Duration(days: 7),
+  );
 
   String selectedCurrency = 'USD';
 
@@ -48,11 +53,17 @@ class _CreateInvoiceScreenState
 
   List<CustomerModel> savedCustomers = [];
 
+  List<ProductModel> savedProducts = [];
+
   @override
   void initState() {
     super.initState();
 
+    invoiceNumberController.text =
+    'INV-${DateTime.now().millisecondsSinceEpoch}';
+
     _loadCustomers();
+    _loadProducts();
   }
 
   @override
@@ -80,6 +91,19 @@ class _CreateInvoiceScreenState
     });
   }
 
+  Future<void> _loadProducts() async {
+    final products =
+    await ProductStorageService.getProducts();
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      savedProducts = products;
+    });
+  }
+
   double get subtotal {
     return items.fold(
       0,
@@ -101,67 +125,69 @@ class _CreateInvoiceScreenState
   }
 
   Future<void> _selectCustomer() async {
+    if (savedCustomers.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'No saved customers found.',
+          ),
+        ),
+      );
+
+      return;
+    }
+
     final customer =
     await showModalBottomSheet<CustomerModel>(
       context: context,
-      isScrollControlled: true,
       builder: (context) {
         return SafeArea(
-          child: Padding(
+          child: ListView(
             padding: const EdgeInsets.all(16),
-            child: ListView(
-              shrinkWrap: true,
-              children: [
-                const Text(
-                  'Select Customer',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
+            children: [
+              const Text(
+                'Select Customer',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
                 ),
-
-                const SizedBox(height: 16),
-
-                ...savedCustomers.map(
-                      (customer) {
-                    return ListTile(
-                      contentPadding:
-                      const EdgeInsets.symmetric(
-                        vertical: 4,
+              ),
+              const SizedBox(height: 16),
+              ...savedCustomers.map(
+                    (customer) {
+                  return ListTile(
+                    leading: CircleAvatar(
+                      child: Text(
+                        customer.name
+                            .trim()
+                            .isNotEmpty
+                            ? customer.name
+                            .trim()[0]
+                            .toUpperCase()
+                            : '?',
                       ),
-                      leading: CircleAvatar(
-                        child: Text(
-                          customer.name
-                              .trim()
-                              .isNotEmpty
-                              ? customer.name
-                              .trim()[0]
-                              .toUpperCase()
-                              : '?',
-                        ),
+                    ),
+                    title: Text(
+                      customer.name,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
                       ),
-                      title: Text(
-                        customer.name,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      subtitle: Text(
-                        customer.email.isNotEmpty
-                            ? customer.email
-                            : customer.phone,
-                      ),
-                      onTap: () {
-                        Navigator.pop(
-                          context,
-                          customer,
-                        );
-                      },
-                    );
-                  },
-                ),
-              ],
-            ),
+                    ),
+                    subtitle: Text(
+                      customer.email.isNotEmpty
+                          ? customer.email
+                          : customer.phone,
+                    ),
+                    onTap: () {
+                      Navigator.pop(
+                        context,
+                        customer,
+                      );
+                    },
+                  );
+                },
+              ),
+            ],
           ),
         );
       },
@@ -183,8 +209,101 @@ class _CreateInvoiceScreenState
     });
   }
 
+  Future<void> _selectSavedProduct() async {
+    if (savedProducts.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'No saved products or services found.',
+          ),
+        ),
+      );
+
+      return;
+    }
+
+    final product =
+    await showModalBottomSheet<ProductModel>(
+      context: context,
+      builder: (context) {
+        return SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              const Text(
+                'Select Product / Service',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              ...savedProducts.map(
+                    (product) {
+                  return ListTile(
+                    leading: CircleAvatar(
+                      child: const Icon(
+                        Icons.inventory_2_outlined,
+                      ),
+                    ),
+                    title: Text(
+                      product.name,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    subtitle:
+                    product.description.isNotEmpty
+                        ? Text(
+                      product.description,
+                      maxLines: 1,
+                      overflow:
+                      TextOverflow.ellipsis,
+                    )
+                        : null,
+                    trailing: Text(
+                      product.price.toStringAsFixed(
+                        2,
+                      ),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    onTap: () {
+                      Navigator.pop(
+                        context,
+                        product,
+                      );
+                    },
+                  );
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (product == null) {
+      return;
+    }
+
+    setState(() {
+      items.add(
+        InvoiceItem(
+          name: product.name,
+          quantity: 1,
+          price: product.price,
+        ),
+      );
+    });
+  }
+
   Future<void> _selectInvoiceDate() async {
-    final selectedDate = await showDatePicker(
+    final selectedDate =
+    await showDatePicker(
       context: context,
       initialDate: invoiceDate,
       firstDate: DateTime(2020),
@@ -201,10 +320,11 @@ class _CreateInvoiceScreenState
   }
 
   Future<void> _selectDueDate() async {
-    final selectedDate = await showDatePicker(
+    final selectedDate =
+    await showDatePicker(
       context: context,
       initialDate: dueDate,
-      firstDate: invoiceDate,
+      firstDate: DateTime(2020),
       lastDate: DateTime(2100),
     );
 
@@ -231,17 +351,15 @@ class _CreateInvoiceScreenState
       text: existingItem?.name ?? '',
     );
 
-    final quantityController =
-    TextEditingController(
+    final quantityController = TextEditingController(
       text: existingItem?.quantity
-          .toString() ??
+          .toStringAsFixed(0) ??
           '1',
     );
 
-    final priceController =
-    TextEditingController(
+    final priceController = TextEditingController(
       text: existingItem?.price
-          .toString() ??
+          .toStringAsFixed(2) ??
           '',
     );
 
@@ -264,8 +382,6 @@ class _CreateInvoiceScreenState
                 children: [
                   TextFormField(
                     controller: nameController,
-                    textInputAction:
-                    TextInputAction.next,
                     decoration:
                     const InputDecoration(
                       labelText: 'Item / Service Name',
@@ -286,14 +402,11 @@ class _CreateInvoiceScreenState
                   const SizedBox(height: 12),
 
                   TextFormField(
-                    controller:
-                    quantityController,
+                    controller: quantityController,
                     keyboardType:
                     const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
-                    textInputAction:
-                    TextInputAction.next,
                     decoration:
                     const InputDecoration(
                       labelText: 'Quantity',
@@ -490,13 +603,9 @@ class _CreateInvoiceScreenState
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // Invoice Details
-            const Text(
-              'Invoice Details',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+            _SectionTitle(
+              title: 'Invoice Details',
+              icon: Icons.receipt_long_outlined,
             ),
 
             const SizedBox(height: 12),
@@ -506,7 +615,7 @@ class _CreateInvoiceScreenState
               decoration: const InputDecoration(
                 labelText: 'Invoice Number',
                 prefixIcon: Icon(
-                  Icons.receipt_long_outlined,
+                  Icons.tag,
                 ),
                 border: OutlineInputBorder(),
               ),
@@ -527,8 +636,7 @@ class _CreateInvoiceScreenState
                 Expanded(
                   child: _DateField(
                     label: 'Invoice Date',
-                    value:
-                    _formatDate(invoiceDate),
+                    date: _formatDate(invoiceDate),
                     onTap: _selectInvoiceDate,
                   ),
                 ),
@@ -536,8 +644,7 @@ class _CreateInvoiceScreenState
                 Expanded(
                   child: _DateField(
                     label: 'Due Date',
-                    value:
-                    _formatDate(dueDate),
+                    date: _formatDate(dueDate),
                     onTap: _selectDueDate,
                   ),
                 ),
@@ -548,8 +655,7 @@ class _CreateInvoiceScreenState
 
             DropdownButtonFormField<String>(
               value: selectedCurrency,
-              decoration:
-              const InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'Currency',
                 prefixIcon: Icon(
                   Icons.currency_exchange,
@@ -587,37 +693,32 @@ class _CreateInvoiceScreenState
 
             const SizedBox(height: 28),
 
-            // Customer Information
-            Row(
-              mainAxisAlignment:
-              MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Customer Information',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                if (savedCustomers.isNotEmpty)
-                  TextButton.icon(
-                    onPressed: _selectCustomer,
-                    icon: const Icon(
-                      Icons.person_search,
-                    ),
-                    label: const Text(
-                      'Select Saved',
-                    ),
-                  ),
-              ],
+            _SectionTitle(
+              title: 'Customer Information',
+              icon: Icons.person_outline,
             ),
 
-            const SizedBox(height: 12),
+            if (savedCustomers.isNotEmpty) ...[
+              const SizedBox(height: 8),
+
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: _selectCustomer,
+                  icon: const Icon(
+                    Icons.person_search,
+                  ),
+                  label: const Text(
+                    'Select Saved Customer',
+                  ),
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 8),
 
             TextFormField(
               controller: customerNameController,
-              textInputAction:
-              TextInputAction.next,
               decoration: const InputDecoration(
                 labelText: 'Customer Name',
                 prefixIcon: Icon(
@@ -641,8 +742,6 @@ class _CreateInvoiceScreenState
               controller: customerEmailController,
               keyboardType:
               TextInputType.emailAddress,
-              textInputAction:
-              TextInputAction.next,
               decoration: const InputDecoration(
                 labelText: 'Customer Email',
                 prefixIcon: Icon(
@@ -669,58 +768,73 @@ class _CreateInvoiceScreenState
 
             const SizedBox(height: 28),
 
-            // Items
+            _SectionTitle(
+              title: 'Items',
+              icon: Icons.inventory_2_outlined,
+            ),
+
+            const SizedBox(height: 12),
+
             Row(
-              mainAxisAlignment:
-              MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'Items / Services',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      _showItemDialog();
+                    },
+                    icon: const Icon(
+                      Icons.add,
+                    ),
+                    label: const Text(
+                      'Add Item',
+                    ),
                   ),
                 ),
-                TextButton.icon(
-                  onPressed: () {
-                    _showItemDialog();
-                  },
-                  icon: const Icon(
-                    Icons.add,
-                  ),
-                  label: const Text(
-                    'Add Item',
+                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed:
+                    _selectSavedProduct,
+                    icon: const Icon(
+                      Icons.inventory_2_outlined,
+                    ),
+                    label: const Text(
+                      'Saved Product',
+                    ),
                   ),
                 ),
               ],
             ),
 
-            const SizedBox(height: 8),
+            const SizedBox(height: 16),
 
             if (items.isEmpty)
-              Card(
-                elevation: 0,
-                child: Padding(
-                  padding:
-                  const EdgeInsets.all(24),
-                  child: Column(
-                    children: [
-                      Icon(
-                        Icons
-                            .shopping_cart_outlined,
-                        size: 48,
-                        color:
-                        Colors.grey.shade400,
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius:
+                  BorderRadius.circular(14),
+                ),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons
+                          .shopping_cart_outlined,
+                      size: 45,
+                      color:
+                      Colors.grey.shade500,
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'No items added yet',
+                      style: TextStyle(
+                        fontWeight:
+                        FontWeight.bold,
                       ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'No items added',
-                        style: TextStyle(
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               )
             else
@@ -753,7 +867,7 @@ class _CreateInvoiceScreenState
                         MainAxisSize.min,
                         children: [
                           Text(
-                            '$selectedCurrency '
+                            '${selectedCurrency} '
                                 '${item.total.toStringAsFixed(2)}',
                             style:
                             const TextStyle(
@@ -790,15 +904,11 @@ class _CreateInvoiceScreenState
                 },
               ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 28),
 
-            // Discount
-            const Text(
-              'Discount',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+            _SectionTitle(
+              title: 'Discount',
+              icon: Icons.discount_outlined,
             ),
 
             const SizedBox(height: 12),
@@ -809,28 +919,25 @@ class _CreateInvoiceScreenState
               const TextInputType.numberWithOptions(
                 decimal: true,
               ),
+              decoration: const InputDecoration(
+                labelText: 'Discount',
+                prefixIcon: Icon(
+                  Icons.discount_outlined,
+                ),
+                border: OutlineInputBorder(),
+              ),
               onChanged: (_) {
                 setState(() {});
               },
-              decoration: InputDecoration(
-                labelText: 'Discount',
-                prefixText:
-                '$selectedCurrency ',
-                prefixIcon: const Icon(
-                  Icons.discount_outlined,
-                ),
-                border:
-                const OutlineInputBorder(),
-              ),
               validator: (value) {
-                final discountValue =
+                final discount =
                 double.tryParse(
                   value?.trim() ?? '',
                 );
 
-                if (discountValue == null ||
-                    discountValue < 0) {
-                  return 'Enter valid discount';
+                if (discount == null ||
+                    discount < 0) {
+                  return 'Enter a valid discount';
                 }
 
                 return null;
@@ -839,13 +946,9 @@ class _CreateInvoiceScreenState
 
             const SizedBox(height: 28),
 
-            // Notes
-            const Text(
-              'Notes',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+            _SectionTitle(
+              title: 'Notes',
+              icon: Icons.notes_outlined,
             ),
 
             const SizedBox(height: 12),
@@ -862,49 +965,35 @@ class _CreateInvoiceScreenState
 
             const SizedBox(height: 28),
 
-            // Invoice Summary
+            _SectionTitle(
+              title: 'Invoice Summary',
+              icon: Icons.calculate_outlined,
+            ),
+
+            const SizedBox(height: 12),
+
             Card(
               elevation: 0,
               child: Padding(
-                padding:
-                const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   children: [
-                    const Align(
-                      alignment:
-                      Alignment.centerLeft,
-                      child: Text(
-                        'Invoice Summary',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight:
-                          FontWeight.bold,
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 16),
-
                     _SummaryRow(
                       title: 'Subtotal',
                       value:
                       '$selectedCurrency '
                           '${subtotal.toStringAsFixed(2)}',
                     ),
-
                     const SizedBox(height: 10),
-
                     _SummaryRow(
                       title: 'Discount',
                       value:
                       '-$selectedCurrency '
                           '${discount.toStringAsFixed(2)}',
                     ),
-
                     const Divider(
                       height: 24,
                     ),
-
                     _SummaryRow(
                       title: 'Total',
                       value:
@@ -917,7 +1006,7 @@ class _CreateInvoiceScreenState
               ),
             ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 28),
 
             SizedBox(
               width: double.infinity,
@@ -945,14 +1034,45 @@ class _CreateInvoiceScreenState
   }
 }
 
+class _SectionTitle extends StatelessWidget {
+  final String title;
+  final IconData icon;
+
+  const _SectionTitle({
+    required this.title,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(
+          icon,
+          size: 21,
+          color: Colors.indigo,
+        ),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _DateField extends StatelessWidget {
   final String label;
-  final String value;
+  final String date;
   final VoidCallback onTap;
 
   const _DateField({
     required this.label,
-    required this.value,
+    required this.date,
     required this.onTap,
   });
 
@@ -960,20 +1080,21 @@ class _DateField extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius:
-      BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(12),
       child: InputDecorator(
         decoration: InputDecoration(
           labelText: label,
           prefixIcon: const Icon(
             Icons.calendar_today_outlined,
           ),
-          border: OutlineInputBorder(
-            borderRadius:
-            BorderRadius.circular(12),
+          border: const OutlineInputBorder(),
+        ),
+        child: Text(
+          date,
+          style: const TextStyle(
+            fontSize: 14,
           ),
         ),
-        child: Text(value),
       ),
     );
   }
