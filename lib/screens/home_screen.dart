@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/invoice_model.dart';
 import '../services/invoice_storage_service.dart';
+import 'business_profile_screen.dart';
 import 'create_invoice_screen.dart';
 import 'customers_screen.dart';
 import 'invoice_preview_screen.dart';
@@ -60,6 +61,16 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Future<void> _openBusinessProfile() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+        const BusinessProfileScreen(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -78,9 +89,10 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           IconButton(
-            onPressed: () {},
+            onPressed: _openBusinessProfile,
+            tooltip: 'Business Profile',
             icon: const Icon(
-              Icons.settings_outlined,
+              Icons.business_outlined,
             ),
           ),
         ],
@@ -187,7 +199,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 Expanded(
                   child: _StatCard(
                     title: 'Paid Revenue',
-                    value: '\$${paidRevenue.toStringAsFixed(2)}',
+                    value:
+                    '\$${paidRevenue.toStringAsFixed(2)}',
                     icon: Icons.payments_outlined,
                   ),
                 ),
@@ -250,6 +263,48 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
 
             const SizedBox(height: 24),
+
+            // Business Profile
+            Card(
+              elevation: 0,
+              child: ListTile(
+                contentPadding:
+                const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 6,
+                ),
+                leading: Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    color: Colors.indigo.withValues(
+                      alpha: 0.1,
+                    ),
+                    borderRadius:
+                    BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.business_outlined,
+                    color: Colors.indigo,
+                  ),
+                ),
+                title: const Text(
+                  'Business Profile',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                subtitle: const Text(
+                  'Manage your business information',
+                ),
+                trailing: const Icon(
+                  Icons.chevron_right,
+                ),
+                onTap: _openBusinessProfile,
+              ),
+            ),
+
+            const SizedBox(height: 8),
           ],
         ),
       ),
@@ -384,7 +439,8 @@ class _InvoiceCard extends StatelessWidget {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(
+                  padding:
+                  const EdgeInsets.symmetric(
                     horizontal: 8,
                     vertical: 3,
                   ),
