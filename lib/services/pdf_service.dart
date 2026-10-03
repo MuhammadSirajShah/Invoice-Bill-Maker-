@@ -5,7 +5,9 @@ import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
+import '../models/business_model.dart';
 import '../models/invoice_model.dart';
+import 'business_storage_service.dart';
 
 class PdfService {
   static Future<Uint8List> generateInvoicePdf(
@@ -13,12 +15,91 @@ class PdfService {
       ) async {
     final pdf = pw.Document();
 
+    final BusinessModel? business =
+    await BusinessStorageService.getBusiness();
+
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(32),
         build: (context) {
           return [
+            // Business Information
+            if (business != null) ...[
+              pw.Container(
+                width: double.infinity,
+                padding: const pw.EdgeInsets.all(16),
+                decoration: pw.BoxDecoration(
+                  color: PdfColors.indigo,
+                  borderRadius:
+                  pw.BorderRadius.circular(8),
+                ),
+                child: pw.Column(
+                  crossAxisAlignment:
+                  pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      business.businessName,
+                      style: pw.TextStyle(
+                        color: PdfColors.white,
+                        fontSize: 20,
+                        fontWeight:
+                        pw.FontWeight.bold,
+                      ),
+                    ),
+                    if (business.phone.isNotEmpty)
+                      pw.Padding(
+                        padding:
+                        const pw.EdgeInsets.only(
+                          top: 5,
+                        ),
+                        child: pw.Text(
+                          business.phone,
+                          style: const pw.TextStyle(
+                            color: PdfColors.white,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ),
+                    if (business.email.isNotEmpty)
+                      pw.Padding(
+                        padding:
+                        const pw.EdgeInsets.only(
+                          top: 4,
+                        ),
+                        child: pw.Text(
+                          business.email,
+                          style:
+                          const pw.TextStyle(
+                            color:
+                            PdfColors.white,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ),
+                    if (business.address.isNotEmpty)
+                      pw.Padding(
+                        padding:
+                        const pw.EdgeInsets.only(
+                          top: 4,
+                        ),
+                        child: pw.Text(
+                          business.address,
+                          style:
+                          const pw.TextStyle(
+                            color:
+                            PdfColors.white,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              pw.SizedBox(height: 24),
+            ],
+
+            // Invoice Header
             pw.Row(
               mainAxisAlignment:
               pw.MainAxisAlignment.spaceBetween,
@@ -33,15 +114,18 @@ class PdfService {
                       'INVOICE',
                       style: pw.TextStyle(
                         fontSize: 28,
-                        fontWeight: pw.FontWeight.bold,
+                        fontWeight:
+                        pw.FontWeight.bold,
                       ),
                     ),
                     pw.SizedBox(height: 6),
                     pw.Text(
                       invoice.invoiceNumber,
-                      style: const pw.TextStyle(
+                      style:
+                      const pw.TextStyle(
                         fontSize: 12,
-                        color: PdfColors.grey700,
+                        color:
+                        PdfColors.grey700,
                       ),
                     ),
                   ],
@@ -52,29 +136,39 @@ class PdfService {
                   children: [
                     pw.Text(
                       'Invoice Date',
-                      style: const pw.TextStyle(
+                      style:
+                      const pw.TextStyle(
                         fontSize: 10,
-                        color: PdfColors.grey700,
+                        color:
+                        PdfColors.grey700,
                       ),
                     ),
                     pw.Text(
-                      _formatDate(invoice.invoiceDate),
+                      _formatDate(
+                        invoice.invoiceDate,
+                      ),
                       style: pw.TextStyle(
-                        fontWeight: pw.FontWeight.bold,
+                        fontWeight:
+                        pw.FontWeight.bold,
                       ),
                     ),
                     pw.SizedBox(height: 8),
                     pw.Text(
                       'Due Date',
-                      style: const pw.TextStyle(
+                      style:
+                      const pw.TextStyle(
                         fontSize: 10,
-                        color: PdfColors.grey700,
+                        color:
+                        PdfColors.grey700,
                       ),
                     ),
                     pw.Text(
-                      _formatDate(invoice.dueDate),
+                      _formatDate(
+                        invoice.dueDate,
+                      ),
                       style: pw.TextStyle(
-                        fontWeight: pw.FontWeight.bold,
+                        fontWeight:
+                        pw.FontWeight.bold,
                       ),
                     ),
                   ],
@@ -84,11 +178,13 @@ class PdfService {
 
             pw.SizedBox(height: 30),
 
+            // Customer
             pw.Container(
               padding: const pw.EdgeInsets.all(16),
               decoration: pw.BoxDecoration(
                 color: PdfColors.grey100,
-                borderRadius: pw.BorderRadius.circular(8),
+                borderRadius:
+                pw.BorderRadius.circular(8),
               ),
               child: pw.Column(
                 crossAxisAlignment:
@@ -98,7 +194,8 @@ class PdfService {
                     'Bill To',
                     style: pw.TextStyle(
                       fontSize: 12,
-                      fontWeight: pw.FontWeight.bold,
+                      fontWeight:
+                      pw.FontWeight.bold,
                     ),
                   ),
                   pw.SizedBox(height: 8),
@@ -106,30 +203,41 @@ class PdfService {
                     invoice.customerName,
                     style: pw.TextStyle(
                       fontSize: 15,
-                      fontWeight: pw.FontWeight.bold,
+                      fontWeight:
+                      pw.FontWeight.bold,
                     ),
                   ),
-                  if (invoice.customerEmail.isNotEmpty)
+                  if (invoice.customerEmail
+                      .isNotEmpty)
                     pw.Padding(
                       padding:
-                      const pw.EdgeInsets.only(top: 4),
+                      const pw.EdgeInsets.only(
+                        top: 4,
+                      ),
                       child: pw.Text(
                         invoice.customerEmail,
-                        style: const pw.TextStyle(
+                        style:
+                        const pw.TextStyle(
                           fontSize: 10,
-                          color: PdfColors.grey700,
+                          color:
+                          PdfColors.grey700,
                         ),
                       ),
                     ),
-                  if (invoice.customerPhone.isNotEmpty)
+                  if (invoice.customerPhone
+                      .isNotEmpty)
                     pw.Padding(
                       padding:
-                      const pw.EdgeInsets.only(top: 4),
+                      const pw.EdgeInsets.only(
+                        top: 4,
+                      ),
                       child: pw.Text(
                         invoice.customerPhone,
-                        style: const pw.TextStyle(
+                        style:
+                        const pw.TextStyle(
                           fontSize: 10,
-                          color: PdfColors.grey700,
+                          color:
+                          PdfColors.grey700,
                         ),
                       ),
                     ),
@@ -139,6 +247,7 @@ class PdfService {
 
             pw.SizedBox(height: 24),
 
+            // Items
             pw.TableHelper.fromTextArray(
               headers: [
                 'Item',
@@ -157,13 +266,16 @@ class PdfService {
                 ];
               }).toList(),
               headerStyle: pw.TextStyle(
-                fontWeight: pw.FontWeight.bold,
+                fontWeight:
+                pw.FontWeight.bold,
                 color: PdfColors.white,
               ),
-              headerDecoration: const pw.BoxDecoration(
+              headerDecoration:
+              const pw.BoxDecoration(
                 color: PdfColors.indigo,
               ),
-              cellStyle: const pw.TextStyle(
+              cellStyle:
+              const pw.TextStyle(
                 fontSize: 10,
               ),
               cellPadding:
@@ -181,11 +293,14 @@ class PdfService {
 
             pw.SizedBox(height: 24),
 
+            // Summary
             pw.Align(
-              alignment: pw.Alignment.centerRight,
+              alignment:
+              pw.Alignment.centerRight,
               child: pw.Container(
                 width: 220,
-                padding: const pw.EdgeInsets.all(14),
+                padding:
+                const pw.EdgeInsets.all(14),
                 child: pw.Column(
                   children: [
                     _summaryRow(
@@ -211,21 +326,25 @@ class PdfService {
               ),
             ),
 
+            // Notes
             if (invoice.notes.isNotEmpty) ...[
               pw.SizedBox(height: 20),
               pw.Text(
                 'Notes',
                 style: pw.TextStyle(
                   fontSize: 12,
-                  fontWeight: pw.FontWeight.bold,
+                  fontWeight:
+                  pw.FontWeight.bold,
                 ),
               ),
               pw.SizedBox(height: 6),
               pw.Text(
                 invoice.notes,
-                style: const pw.TextStyle(
+                style:
+                const pw.TextStyle(
                   fontSize: 10,
-                  color: PdfColors.grey700,
+                  color:
+                  PdfColors.grey700,
                 ),
               ),
             ],
@@ -241,7 +360,8 @@ class PdfService {
                 'Thank you for your business!',
                 style: pw.TextStyle(
                   fontSize: 11,
-                  fontWeight: pw.FontWeight.bold,
+                  fontWeight:
+                  pw.FontWeight.bold,
                 ),
               ),
             ),
@@ -256,9 +376,11 @@ class PdfService {
   static Future<String> saveInvoicePdf(
       InvoiceModel invoice,
       ) async {
-    final pdfBytes = await generateInvoicePdf(invoice);
+    final pdfBytes =
+    await generateInvoicePdf(invoice);
 
-    final directory = await getApplicationDocumentsDirectory();
+    final directory =
+    await getApplicationDocumentsDirectory();
 
     final fileName =
         '${invoice.invoiceNumber.replaceAll(' ', '_')}.pdf';
@@ -294,7 +416,8 @@ class PdfService {
           value,
           style: pw.TextStyle(
             fontSize: isTotal ? 14 : 10,
-            fontWeight: pw.FontWeight.bold,
+            fontWeight:
+            pw.FontWeight.bold,
           ),
         ),
       ],
