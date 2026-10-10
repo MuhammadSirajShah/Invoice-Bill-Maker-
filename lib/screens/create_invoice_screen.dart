@@ -62,6 +62,9 @@ class _CreateInvoiceScreenState
 
   List<ProductModel> savedProducts = [];
 
+  // Prevent multiple item dialogs from opening.
+  bool _isItemDialogOpen = false;
+
   bool get isEditing => widget.invoice != null;
 
   @override
@@ -166,10 +169,6 @@ class _CreateInvoiceScreenState
     return result < 0 ? 0 : result;
   }
 
-  // ------------------------------------------------------------
-  // SELECT CUSTOMER
-  // ------------------------------------------------------------
-
   Future<void> _selectCustomer() async {
     if (savedCustomers.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -213,17 +212,20 @@ class _CreateInvoiceScreenState
                             : '?',
                       ),
                     ),
+
                     title: Text(
                       customer.name,
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                       ),
                     ),
+
                     subtitle: Text(
                       customer.email.isNotEmpty
                           ? customer.email
                           : customer.phone,
                     ),
+
                     onTap: () {
                       Navigator.pop(
                         context,
@@ -258,10 +260,6 @@ class _CreateInvoiceScreenState
           customer.phone;
     });
   }
-
-  // ------------------------------------------------------------
-  // SELECT SAVED PRODUCT
-  // ------------------------------------------------------------
 
   Future<void> _selectSavedProduct() async {
     if (savedProducts.isEmpty) {
@@ -302,12 +300,14 @@ class _CreateInvoiceScreenState
                         Icons.inventory_2_outlined,
                       ),
                     ),
+
                     title: Text(
                       product.name,
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                       ),
                     ),
+
                     subtitle:
                     product.description.isNotEmpty
                         ? Text(
@@ -317,6 +317,7 @@ class _CreateInvoiceScreenState
                       TextOverflow.ellipsis,
                     )
                         : null,
+
                     trailing: Text(
                       '$selectedCurrency '
                           '${product.price.toStringAsFixed(2)}',
@@ -324,6 +325,7 @@ class _CreateInvoiceScreenState
                         fontWeight: FontWeight.bold,
                       ),
                     ),
+
                     onTap: () {
                       Navigator.pop(
                         context,
@@ -358,10 +360,6 @@ class _CreateInvoiceScreenState
     });
   }
 
-  // ------------------------------------------------------------
-  // INVOICE DATE
-  // ------------------------------------------------------------
-
   Future<void> _selectInvoiceDate() async {
     final selectedDate = await showDatePicker(
       context: context,
@@ -374,14 +372,14 @@ class _CreateInvoiceScreenState
       return;
     }
 
+    if (!mounted) {
+      return;
+    }
+
     setState(() {
       invoiceDate = selectedDate;
     });
   }
-
-  // ------------------------------------------------------------
-  // DUE DATE
-  // ------------------------------------------------------------
 
   Future<void> _selectDueDate() async {
     final selectedDate = await showDatePicker(
@@ -392,6 +390,10 @@ class _CreateInvoiceScreenState
     );
 
     if (selectedDate == null) {
+      return;
+    }
+
+    if (!mounted) {
       return;
     }
 
@@ -406,14 +408,17 @@ class _CreateInvoiceScreenState
         '${date.year}';
   }
 
-  // ------------------------------------------------------------
-  // ADD / EDIT ITEM
-  // ------------------------------------------------------------
-
   Future<void> _showItemDialog({
     InvoiceItem? existingItem,
     int? index,
   }) async {
+    // Prevent multiple dialogs from opening.
+    if (_isItemDialogOpen) {
+      return;
+    }
+
+    _isItemDialogOpen = true;
+
     final nameController = TextEditingController(
       text: existingItem?.name ?? '',
     );
@@ -432,215 +437,213 @@ class _CreateInvoiceScreenState
 
     final formKey = GlobalKey<FormState>();
 
-    // Important:
-    // The dialog will return an InvoiceItem.
-    // We will update the parent screen AFTER the dialog closes.
-    final InvoiceItem? result =
-    await showDialog<InvoiceItem>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: Text(
-            existingItem == null
-                ? 'Add Item'
-                : 'Edit Item',
-          ),
-          content: Form(
-            key: formKey,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // ITEM NAME
-                  TextFormField(
-                    controller: nameController,
-                    textInputAction:
-                    TextInputAction.next,
-                    decoration: const InputDecoration(
-                      labelText:
-                      'Item / Service Name',
-                      prefixIcon: Icon(
-                        Icons.inventory_2_outlined,
-                      ),
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (value) {
-                      if (value == null ||
-                          value.trim().isEmpty) {
-                        return 'Enter item name';
-                      }
+    bool isSavingItem = false;
 
-                      return null;
-                    },
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // QUANTITY
-                  TextFormField(
-                    controller:
-                    quantityController,
-                    keyboardType:
-                    const TextInputType
-                        .numberWithOptions(
-                      decimal: true,
-                    ),
-                    decoration:
-                    const InputDecoration(
-                      labelText: 'Quantity',
-                      prefixIcon: Icon(
-                        Icons.numbers,
-                      ),
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (value) {
-                      final quantity =
-                      double.tryParse(
-                        value?.trim() ?? '',
-                      );
-
-                      if (quantity == null ||
-                          quantity <= 0) {
-                        return 'Enter valid quantity';
-                      }
-
-                      return null;
-                    },
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // PRICE
-                  TextFormField(
-                    controller: priceController,
-                    keyboardType:
-                    const TextInputType
-                        .numberWithOptions(
-                      decimal: true,
-                    ),
-                    decoration: InputDecoration(
-                      labelText:
-                      'Price ($selectedCurrency)',
-
-                      // Selected currency will
-                      // automatically appear here.
-                      prefixText:
-                      '$selectedCurrency ',
-
-                      prefixIcon: const Icon(
-                        Icons.payments_outlined,
-                      ),
-
-                      border:
-                      const OutlineInputBorder(),
-                    ),
-                    validator: (value) {
-                      final price =
-                      double.tryParse(
-                        value?.trim() ?? '',
-                      );
-
-                      if (price == null ||
-                          price < 0) {
-                        return 'Enter valid price';
-                      }
-
-                      return null;
-                    },
-                  ),
-                ],
-              ),
+    try {
+      final InvoiceItem? result =
+      await showDialog<InvoiceItem>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) {
+          return AlertDialog(
+            title: Text(
+              existingItem == null
+                  ? 'Add Item'
+                  : 'Edit Item',
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(
-                  dialogContext,
-                );
-              },
-              child: const Text(
-                'Cancel',
+
+            content: Form(
+              key: formKey,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: nameController,
+                      textInputAction:
+                      TextInputAction.next,
+                      decoration: const InputDecoration(
+                        labelText: 'Item / Service Name',
+                        prefixIcon: Icon(
+                          Icons.inventory_2_outlined,
+                        ),
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (value) {
+                        if (value == null ||
+                            value.trim().isEmpty) {
+                          return 'Enter item name';
+                        }
+
+                        return null;
+                      },
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    TextFormField(
+                      controller: quantityController,
+                      keyboardType:
+                      const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration: const InputDecoration(
+                        labelText: 'Quantity',
+                        prefixIcon: Icon(
+                          Icons.numbers,
+                        ),
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (value) {
+                        final quantity =
+                        double.tryParse(
+                          value?.trim() ?? '',
+                        );
+
+                        if (quantity == null ||
+                            quantity <= 0) {
+                          return 'Enter valid quantity';
+                        }
+
+                        return null;
+                      },
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    TextFormField(
+                      controller: priceController,
+                      keyboardType:
+                      const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration: InputDecoration(
+                        labelText:
+                        'Price ($selectedCurrency)',
+                        prefixText:
+                        '$selectedCurrency ',
+                        prefixIcon: const Icon(
+                          Icons.payments_outlined,
+                        ),
+                        border:
+                        const OutlineInputBorder(),
+                      ),
+                      validator: (value) {
+                        final price =
+                        double.tryParse(
+                          value?.trim() ?? '',
+                        );
+
+                        if (price == null ||
+                            price < 0) {
+                          return 'Enter valid price';
+                        }
+
+                        return null;
+                      },
+                    ),
+                  ],
+                ),
               ),
             ),
 
-            ElevatedButton(
-              onPressed: () {
-                if (!formKey.currentState!
-                    .validate()) {
-                  return;
-                }
+            actions: [
+              TextButton(
+                onPressed: isSavingItem
+                    ? null
+                    : () {
+                  FocusScope.of(
+                    dialogContext,
+                  ).unfocus();
 
-                final item = InvoiceItem(
-                  name:
-                  nameController.text.trim(),
-                  quantity: double.parse(
-                    quantityController.text.trim(),
-                  ),
-                  price: double.parse(
-                    priceController.text.trim(),
-                  ),
-                );
-
-                // Only return the item.
-                // Parent setState will happen
-                // after the dialog is closed.
-                Navigator.pop(
-                  dialogContext,
-                  item,
-                );
-              },
-              child: Text(
-                existingItem == null
-                    ? 'Add'
-                    : 'Update',
+                  Navigator.of(
+                    dialogContext,
+                  ).pop();
+                },
+                child: const Text(
+                  'Cancel',
+                ),
               ),
-            ),
-          ],
-        );
-      },
-    );
 
-    // Dispose dialog controllers after
-    // showDialog has completely finished.
-    nameController.dispose();
-    quantityController.dispose();
-    priceController.dispose();
+              ElevatedButton(
+                onPressed: () {
+                  if (isSavingItem) {
+                    return;
+                  }
 
-    // User cancelled the dialog.
-    if (result == null) {
-      return;
-    }
+                  if (!formKey.currentState!
+                      .validate()) {
+                    return;
+                  }
 
-    if (!mounted) {
-      return;
-    }
+                  isSavingItem = true;
 
-    // Now the dialog is already closed,
-    // so updating the parent is safe.
-    setState(() {
-      if (index != null) {
-        items[index] = result;
-      } else {
-        items.add(result);
+                  final item = InvoiceItem(
+                    name:
+                    nameController.text.trim(),
+                    quantity: double.parse(
+                      quantityController.text.trim(),
+                    ),
+                    price: double.parse(
+                      priceController.text.trim(),
+                    ),
+                  );
+
+                  // Remove keyboard focus before closing
+                  // the dialog.
+                  FocusScope.of(
+                    dialogContext,
+                  ).unfocus();
+
+                  // Close dialog first.
+                  Navigator.of(
+                    dialogContext,
+                  ).pop(item);
+                },
+                child: Text(
+                  existingItem == null
+                      ? 'Add'
+                      : 'Update',
+                ),
+              ),
+            ],
+          );
+        },
+      );
+
+      // Dialog is completely finished.
+      // Now update the parent screen.
+      if (result != null && mounted) {
+        setState(() {
+          if (index != null) {
+            items[index] = result;
+          } else {
+            items.add(result);
+          }
+        });
       }
-    });
-  }
+    } finally {
+      _isItemDialogOpen = false;
 
-  // ------------------------------------------------------------
-  // DELETE ITEM
-  // ------------------------------------------------------------
+      // IMPORTANT:
+      // Do NOT dispose TextEditingControllers immediately
+      // when the dialog closes.
+      //
+      // Wait until the current frame is finished so the
+      // TextFormField widgets are fully removed first.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        nameController.dispose();
+        quantityController.dispose();
+        priceController.dispose();
+      });
+    }
+  }
 
   void _deleteItem(int index) {
     setState(() {
       items.removeAt(index);
     });
   }
-
-  // ------------------------------------------------------------
-  // GENERATE / UPDATE INVOICE
-  // ------------------------------------------------------------
 
   Future<void> _generateInvoice() async {
     if (!_formKey.currentState!.validate()) {
@@ -678,15 +681,13 @@ class _CreateInvoiceScreenState
 
       currency: selectedCurrency,
 
-      notes:
-      notesController.text.trim(),
+      notes: notesController.text.trim(),
 
-      items: List<InvoiceItem>.from(items),
+      items: List.from(items),
 
       discount: discount,
 
-      status:
-      widget.invoice?.status ?? 'Pending',
+      status: widget.invoice?.status ?? 'Pending',
     );
 
     try {
@@ -730,10 +731,6 @@ class _CreateInvoiceScreenState
     }
   }
 
-  // ------------------------------------------------------------
-  // BUILD
-  // ------------------------------------------------------------
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -747,18 +744,16 @@ class _CreateInvoiceScreenState
           ),
         ),
       ),
+
       body: Form(
         key: _formKey,
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // --------------------------------------------------
-            // INVOICE DETAILS
-            // --------------------------------------------------
-
-            const _SectionTitle(
+            _SectionTitle(
               title: 'Invoice Details',
-              icon: Icons.receipt_long_outlined,
+              icon:
+              Icons.receipt_long_outlined,
             ),
 
             const SizedBox(height: 12),
@@ -792,8 +787,9 @@ class _CreateInvoiceScreenState
                 Expanded(
                   child: _DateField(
                     label: 'Invoice Date',
-                    date:
-                    _formatDate(invoiceDate),
+                    date: _formatDate(
+                      invoiceDate,
+                    ),
                     onTap:
                     _selectInvoiceDate,
                   ),
@@ -804,8 +800,9 @@ class _CreateInvoiceScreenState
                 Expanded(
                   child: _DateField(
                     label: 'Due Date',
-                    date:
-                    _formatDate(dueDate),
+                    date: _formatDate(
+                      dueDate,
+                    ),
                     onTap:
                     _selectDueDate,
                   ),
@@ -814,10 +811,6 @@ class _CreateInvoiceScreenState
             ),
 
             const SizedBox(height: 12),
-
-            // --------------------------------------------------
-            // CURRENCY
-            // --------------------------------------------------
 
             DropdownButtonFormField<String>(
               value: selectedCurrency,
@@ -861,11 +854,7 @@ class _CreateInvoiceScreenState
 
             const SizedBox(height: 28),
 
-            // --------------------------------------------------
-            // CUSTOMER
-            // --------------------------------------------------
-
-            const _SectionTitle(
+            _SectionTitle(
               title: 'Customer Information',
               icon: Icons.person_outline,
             ),
@@ -951,11 +940,7 @@ class _CreateInvoiceScreenState
 
             const SizedBox(height: 28),
 
-            // --------------------------------------------------
-            // ITEMS
-            // --------------------------------------------------
-
-            const _SectionTitle(
+            _SectionTitle(
               title: 'Items',
               icon:
               Icons.inventory_2_outlined,
@@ -982,13 +967,11 @@ class _CreateInvoiceScreenState
                 const SizedBox(width: 10),
 
                 Expanded(
-                  child:
-                  OutlinedButton.icon(
+                  child: OutlinedButton.icon(
                     onPressed:
                     _selectSavedProduct,
                     icon: const Icon(
-                      Icons
-                          .inventory_2_outlined,
+                      Icons.inventory_2_outlined,
                     ),
                     label: const Text(
                       'Saved Product',
@@ -999,10 +982,6 @@ class _CreateInvoiceScreenState
             ),
 
             const SizedBox(height: 16),
-
-            // --------------------------------------------------
-            // NO ITEMS
-            // --------------------------------------------------
 
             if (items.isEmpty)
               Container(
@@ -1028,9 +1007,7 @@ class _CreateInvoiceScreenState
                       Colors.grey.shade500,
                     ),
 
-                    const SizedBox(
-                      height: 8,
-                    ),
+                    const SizedBox(height: 8),
 
                     const Text(
                       'No items added yet',
@@ -1108,11 +1085,11 @@ class _CreateInvoiceScreenState
                                 index,
                               );
                             },
-                            icon:
-                            const Icon(
+                            icon: const Icon(
                               Icons
                                   .delete_outline,
-                              color: Colors.red,
+                              color:
+                              Colors.red,
                             ),
                           ),
                         ],
@@ -1124,11 +1101,7 @@ class _CreateInvoiceScreenState
 
             const SizedBox(height: 28),
 
-            // --------------------------------------------------
-            // DISCOUNT
-            // --------------------------------------------------
-
-            const _SectionTitle(
+            _SectionTitle(
               title: 'Discount',
               icon:
               Icons.discount_outlined,
@@ -1148,8 +1121,7 @@ class _CreateInvoiceScreenState
               const InputDecoration(
                 labelText: 'Discount',
                 prefixIcon: Icon(
-                  Icons
-                      .discount_outlined,
+                  Icons.discount_outlined,
                 ),
                 border:
                 OutlineInputBorder(),
@@ -1174,21 +1146,15 @@ class _CreateInvoiceScreenState
 
             const SizedBox(height: 28),
 
-            // --------------------------------------------------
-            // NOTES
-            // --------------------------------------------------
-
-            const _SectionTitle(
+            _SectionTitle(
               title: 'Notes',
-              icon:
-              Icons.notes_outlined,
+              icon: Icons.notes_outlined,
             ),
 
             const SizedBox(height: 12),
 
             TextFormField(
-              controller:
-              notesController,
+              controller: notesController,
               maxLines: 4,
               decoration:
               const InputDecoration(
@@ -1201,11 +1167,7 @@ class _CreateInvoiceScreenState
 
             const SizedBox(height: 28),
 
-            // --------------------------------------------------
-            // SUMMARY
-            // --------------------------------------------------
-
-            const _SectionTitle(
+            _SectionTitle(
               title: 'Invoice Summary',
               icon:
               Icons.calculate_outlined,
@@ -1217,9 +1179,7 @@ class _CreateInvoiceScreenState
               elevation: 0,
               child: Padding(
                 padding:
-                const EdgeInsets.all(
-                  16,
-                ),
+                const EdgeInsets.all(16),
                 child: Column(
                   children: [
                     _SummaryRow(
@@ -1229,9 +1189,7 @@ class _CreateInvoiceScreenState
                           '${subtotal.toStringAsFixed(2)}',
                     ),
 
-                    const SizedBox(
-                      height: 10,
-                    ),
+                    const SizedBox(height: 10),
 
                     _SummaryRow(
                       title: 'Discount',
@@ -1258,15 +1216,10 @@ class _CreateInvoiceScreenState
 
             const SizedBox(height: 28),
 
-            // --------------------------------------------------
-            // GENERATE / UPDATE
-            // --------------------------------------------------
-
             SizedBox(
               width: double.infinity,
               height: 54,
-              child:
-              ElevatedButton.icon(
+              child: ElevatedButton.icon(
                 onPressed:
                 _generateInvoice,
                 icon: const Icon(
@@ -1294,12 +1247,7 @@ class _CreateInvoiceScreenState
   }
 }
 
-// ============================================================
-// SECTION TITLE
-// ============================================================
-
-class _SectionTitle
-    extends StatelessWidget {
+class _SectionTitle extends StatelessWidget {
   final String title;
   final IconData icon;
 
@@ -1324,8 +1272,7 @@ class _SectionTitle
           title,
           style: const TextStyle(
             fontSize: 18,
-            fontWeight:
-            FontWeight.bold,
+            fontWeight: FontWeight.bold,
           ),
         ),
       ],
@@ -1333,12 +1280,7 @@ class _SectionTitle
   }
 }
 
-// ============================================================
-// DATE FIELD
-// ============================================================
-
-class _DateField
-    extends StatelessWidget {
+class _DateField extends StatelessWidget {
   final String label;
   final String date;
   final VoidCallback onTap;
@@ -1356,8 +1298,7 @@ class _DateField
       borderRadius:
       BorderRadius.circular(12),
       child: InputDecorator(
-        decoration:
-        InputDecoration(
+        decoration: InputDecoration(
           labelText: label,
           prefixIcon: const Icon(
             Icons.calendar_today_outlined,
@@ -1376,12 +1317,7 @@ class _DateField
   }
 }
 
-// ============================================================
-// SUMMARY ROW
-// ============================================================
-
-class _SummaryRow
-    extends StatelessWidget {
+class _SummaryRow extends StatelessWidget {
   final String title;
   final String value;
   final bool isTotal;
