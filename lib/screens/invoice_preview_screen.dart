@@ -4,8 +4,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../models/Invoice Template Model/invoice_template_model.dart';
 import '../models/business_model.dart';
 import '../models/invoice_model.dart';
+import '../services/Invoice Template Storage Service/invoice_template_storage_service.dart';
 import '../services/business_storage_service.dart';
 import '../services/pdf_service.dart';
 
@@ -26,6 +28,9 @@ class _InvoicePreviewScreenState
     extends State<InvoicePreviewScreen> {
   BusinessModel? business;
 
+  InvoiceTemplateModel selectedTemplate =
+      InvoiceTemplateModel.templates.first;
+
   bool isLoadingBusiness = true;
 
   @override
@@ -39,10 +44,14 @@ class _InvoicePreviewScreenState
       final savedBusiness =
       await BusinessStorageService.getBusiness();
 
+      final savedTemplate = await InvoiceTemplateStorageService
+          .getSelectedTemplate();
+
       if (!mounted) return;
 
       setState(() {
         business = savedBusiness;
+        selectedTemplate = savedTemplate;
         isLoadingBusiness = false;
       });
     } catch (e) {
@@ -54,7 +63,7 @@ class _InvoicePreviewScreenState
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Could not load business profile: $e'),
+          content: Text('Could not load invoice settings: $e'),
         ),
       );
     }
@@ -95,9 +104,7 @@ class _InvoicePreviewScreenState
           title: 'Share Invoice',
           subject: 'Invoice ${widget.invoice.invoiceNumber}',
           text: 'Invoice ${widget.invoice.invoiceNumber}',
-          files: [
-            XFile(filePath),
-          ],
+          files: [XFile(filePath)],
         ),
       );
 
@@ -124,8 +131,10 @@ class _InvoicePreviewScreenState
   @override
   Widget build(BuildContext context) {
     final invoice = widget.invoice;
+    final template = selectedTemplate;
 
     return Scaffold(
+      backgroundColor: template.backgroundColor,
       appBar: AppBar(
         title: const Text(
           'Invoice Preview',
@@ -133,6 +142,8 @@ class _InvoicePreviewScreenState
             fontWeight: FontWeight.bold,
           ),
         ),
+        backgroundColor: template.primaryColor,
+        foregroundColor: Colors.white,
       ),
       body: isLoadingBusiness
           ? const Center(
@@ -142,18 +153,37 @@ class _InvoicePreviewScreenState
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            _BusinessSection(business: business),
+            _BusinessSection(
+              business: business,
+              template: template,
+            ),
             const SizedBox(height: 16),
-            _InvoiceHeader(invoice: invoice),
+            _InvoiceHeader(
+              invoice: invoice,
+              template: template,
+            ),
             const SizedBox(height: 16),
-            _CustomerSection(invoice: invoice),
+            _CustomerSection(
+              invoice: invoice,
+              primaryColor: template.primaryColor,
+            ),
             const SizedBox(height: 16),
-            _ItemsSection(invoice: invoice),
+            _ItemsSection(
+              invoice: invoice,
+              primaryColor: template.primaryColor,
+            ),
             const SizedBox(height: 16),
-            _SummarySection(invoice: invoice),
+            _SummarySection(
+              invoice: invoice,
+              primaryColor: template.primaryColor,
+              accentColor: template.accentColor,
+            ),
             if (invoice.notes.isNotEmpty) ...[
               const SizedBox(height: 16),
-              _NotesSection(invoice: invoice),
+              _NotesSection(
+                invoice: invoice,
+                primaryColor: template.primaryColor,
+              ),
             ],
             const SizedBox(height: 24),
             SizedBox(
@@ -161,6 +191,10 @@ class _InvoicePreviewScreenState
               height: 55,
               child: ElevatedButton.icon(
                 onPressed: _generatePdf,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: template.primaryColor,
+                  foregroundColor: Colors.white,
+                ),
                 icon: const Icon(
                   Icons.picture_as_pdf_outlined,
                 ),
@@ -179,6 +213,12 @@ class _InvoicePreviewScreenState
               height: 55,
               child: OutlinedButton.icon(
                 onPressed: _shareInvoice,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: template.primaryColor,
+                  side: BorderSide(
+                    color: template.primaryColor,
+                  ),
+                ),
                 icon: const Icon(Icons.share_outlined),
                 label: const Text(
                   'Share Invoice',
@@ -199,9 +239,11 @@ class _InvoicePreviewScreenState
 
 class _BusinessSection extends StatelessWidget {
   final BusinessModel? business;
+  final InvoiceTemplateModel template;
 
   const _BusinessSection({
     required this.business,
+    required this.template,
   });
 
   @override
@@ -210,6 +252,7 @@ class _BusinessSection extends StatelessWidget {
       return _SectionCard(
         title: 'Business Information',
         icon: Icons.business_outlined,
+        primaryColor: template.primaryColor,
         child: const Text(
           'No business profile added yet.',
           style: TextStyle(color: Colors.grey),
@@ -230,7 +273,7 @@ class _BusinessSection extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.indigo,
+        color: template.primaryColor,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
@@ -264,7 +307,6 @@ class _BusinessSection extends StatelessWidget {
               ),
             ],
           ),
-
           if (hasLogo) ...[
             const SizedBox(height: 18),
             Center(
@@ -280,17 +322,16 @@ class _BusinessSection extends StatelessWidget {
                   File(path),
                   fit: BoxFit.contain,
                   errorBuilder: (context, error, stackTrace) {
-                    return const Icon(
+                    return Icon(
                       Icons.business,
                       size: 45,
-                      color: Colors.indigo,
+                      color: template.primaryColor,
                     );
                   },
                 ),
               ),
             ),
           ],
-
           const SizedBox(height: 16),
           Text(
             business!.businessName,
@@ -300,7 +341,6 @@ class _BusinessSection extends StatelessWidget {
               fontWeight: FontWeight.bold,
             ),
           ),
-
           if (hasPhone) ...[
             const SizedBox(height: 10),
             _BusinessInfoRow(
@@ -364,9 +404,11 @@ class _BusinessInfoRow extends StatelessWidget {
 
 class _InvoiceHeader extends StatelessWidget {
   final InvoiceModel invoice;
+  final InvoiceTemplateModel template;
 
   const _InvoiceHeader({
     required this.invoice,
+    required this.template,
   });
 
   @override
@@ -375,15 +417,19 @@ class _InvoiceHeader extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.indigo,
+        color: template.primaryColor,
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: template.accentColor,
+          width: 2,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(
+          Icon(
             Icons.receipt_long_rounded,
-            color: Colors.white,
+            color: template.accentColor,
             size: 40,
           ),
           const SizedBox(height: 14),
@@ -412,9 +458,11 @@ class _InvoiceHeader extends StatelessWidget {
 
 class _CustomerSection extends StatelessWidget {
   final InvoiceModel invoice;
+  final Color primaryColor;
 
   const _CustomerSection({
     required this.invoice,
+    required this.primaryColor,
   });
 
   @override
@@ -422,6 +470,7 @@ class _CustomerSection extends StatelessWidget {
     return _SectionCard(
       title: 'Customer Information',
       icon: Icons.person_outline_rounded,
+      primaryColor: primaryColor,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -473,9 +522,11 @@ class _CustomerSection extends StatelessWidget {
 
 class _ItemsSection extends StatelessWidget {
   final InvoiceModel invoice;
+  final Color primaryColor;
 
   const _ItemsSection({
     required this.invoice,
+    required this.primaryColor,
   });
 
   @override
@@ -483,6 +534,7 @@ class _ItemsSection extends StatelessWidget {
     return _SectionCard(
       title: 'Items',
       icon: Icons.shopping_bag_outlined,
+      primaryColor: primaryColor,
       child: Column(
         children: [
           Row(
@@ -564,9 +616,13 @@ class _ItemsSection extends StatelessWidget {
 
 class _SummarySection extends StatelessWidget {
   final InvoiceModel invoice;
+  final Color primaryColor;
+  final Color accentColor;
 
   const _SummarySection({
     required this.invoice,
+    required this.primaryColor,
+    required this.accentColor,
   });
 
   @override
@@ -574,6 +630,7 @@ class _SummarySection extends StatelessWidget {
     return _SectionCard(
       title: 'Summary',
       icon: Icons.calculate_outlined,
+      primaryColor: primaryColor,
       child: Column(
         children: [
           _SummaryRow(
@@ -587,12 +644,16 @@ class _SummarySection extends StatelessWidget {
             value: '-${invoice.currency} '
                 '${invoice.discount.toStringAsFixed(2)}',
           ),
-          const Divider(height: 28),
+          Divider(
+            height: 28,
+            color: accentColor.withValues(alpha: 0.7),
+          ),
           _SummaryRow(
             title: 'Total',
             value: '${invoice.currency} '
                 '${invoice.total.toStringAsFixed(2)}',
             isTotal: true,
+            totalColor: primaryColor,
           ),
         ],
       ),
@@ -602,9 +663,11 @@ class _SummarySection extends StatelessWidget {
 
 class _NotesSection extends StatelessWidget {
   final InvoiceModel invoice;
+  final Color primaryColor;
 
   const _NotesSection({
     required this.invoice,
+    required this.primaryColor,
   });
 
   @override
@@ -612,6 +675,7 @@ class _NotesSection extends StatelessWidget {
     return _SectionCard(
       title: 'Notes',
       icon: Icons.notes_outlined,
+      primaryColor: primaryColor,
       child: Text(
         invoice.notes,
         style: TextStyle(
@@ -626,11 +690,13 @@ class _NotesSection extends StatelessWidget {
 class _SectionCard extends StatelessWidget {
   final String title;
   final IconData icon;
+  final Color primaryColor;
   final Widget child;
 
   const _SectionCard({
     required this.title,
     required this.icon,
+    required this.primaryColor,
     required this.child,
   });
 
@@ -643,7 +709,7 @@ class _SectionCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: Colors.grey.shade200,
+          color: primaryColor.withValues(alpha: 0.2),
         ),
       ),
       child: Column(
@@ -654,14 +720,15 @@ class _SectionCard extends StatelessWidget {
               Icon(
                 icon,
                 size: 21,
-                color: Colors.indigo,
+                color: primaryColor,
               ),
               const SizedBox(width: 8),
               Text(
                 title,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.bold,
+                  color: primaryColor,
                 ),
               ),
             ],
@@ -743,11 +810,13 @@ class _SummaryRow extends StatelessWidget {
   final String title;
   final String value;
   final bool isTotal;
+  final Color? totalColor;
 
   const _SummaryRow({
     required this.title,
     required this.value,
     this.isTotal = false,
+    this.totalColor,
   });
 
   @override
@@ -759,11 +828,10 @@ class _SummaryRow extends StatelessWidget {
           title,
           style: TextStyle(
             fontSize: isTotal ? 17 : 15,
-            fontWeight: isTotal
-                ? FontWeight.bold
-                : FontWeight.normal,
+            fontWeight:
+            isTotal ? FontWeight.bold : FontWeight.normal,
             color: isTotal
-                ? Colors.black
+                ? (totalColor ?? Colors.black)
                 : Colors.grey.shade700,
           ),
         ),
@@ -772,6 +840,7 @@ class _SummaryRow extends StatelessWidget {
           style: TextStyle(
             fontSize: isTotal ? 19 : 15,
             fontWeight: FontWeight.bold,
+            color: isTotal ? totalColor : null,
           ),
         ),
       ],

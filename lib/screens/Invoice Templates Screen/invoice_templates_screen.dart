@@ -76,7 +76,7 @@ class _InvoiceTemplatesScreenState
           crossAxisCount: 2,
           crossAxisSpacing: 14,
           mainAxisSpacing: 14,
-          childAspectRatio: 0.78,
+          childAspectRatio: 0.62,
         ),
         itemBuilder: (context, index) {
           final template =
