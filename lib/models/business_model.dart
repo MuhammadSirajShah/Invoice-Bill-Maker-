@@ -1,14 +1,17 @@
+
 class BusinessModel {
   final String businessName;
   final String phone;
   final String email;
   final String address;
+  final String? logoPath;
 
   BusinessModel({
     required this.businessName,
     required this.phone,
     required this.email,
     required this.address,
+    this.logoPath,
   });
 
   Map<String, dynamic> toJson() {
@@ -17,6 +20,7 @@ class BusinessModel {
       'phone': phone,
       'email': email,
       'address': address,
+      'logoPath': logoPath,
     };
   }
 
@@ -28,6 +32,7 @@ class BusinessModel {
       phone: json['phone'] ?? '',
       email: json['email'] ?? '',
       address: json['address'] ?? '',
+      logoPath: json['logoPath'],
     );
   }
 }

@@ -55,8 +55,10 @@ class PdfService {
                         ),
                         child: pw.Text(
                           business.phone,
-                          style: const pw.TextStyle(
-                            color: PdfColors.white,
+                          style:
+                          const pw.TextStyle(
+                            color:
+                            PdfColors.white,
                             fontSize: 10,
                           ),
                         ),
