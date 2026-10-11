@@ -1,7 +1,9 @@
+
 import 'package:flutter/material.dart';
 
 import '../models/invoice_model.dart';
 import '../services/invoice_storage_service.dart';
+import 'Invoice Templates Screen/invoice_templates_screen.dart';
 import 'business_profile_screen.dart';
 import 'create_invoice_screen.dart';
 import 'customers_screen.dart';
@@ -29,9 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final savedInvoices =
     await InvoiceStorageService.getInvoices();
 
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
 
     setState(() {
       invoices = savedInvoices;
@@ -39,36 +39,61 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   int get paidInvoicesCount {
-    return invoices.where(
-          (invoice) => invoice.status == 'Paid',
-    ).length;
+    return invoices
+        .where((invoice) => invoice.status == 'Paid')
+        .length;
   }
 
   int get pendingInvoicesCount {
-    return invoices.where(
-          (invoice) => invoice.status == 'Pending',
-    ).length;
+    return invoices
+        .where((invoice) => invoice.status == 'Pending')
+        .length;
   }
 
   double get paidRevenue {
     return invoices
-        .where(
-          (invoice) => invoice.status == 'Paid',
-    )
-        .fold(
-      0,
-          (sum, invoice) => sum + invoice.total,
-    );
+        .where((invoice) => invoice.status == 'Paid')
+        .fold(0.0, (sum, invoice) => sum + invoice.total);
   }
 
   Future<void> _openBusinessProfile() async {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) =>
-        const BusinessProfileScreen(),
+        builder: (context) => const BusinessProfileScreen(),
       ),
     );
+  }
+
+  Future<void> _openInvoiceTemplates() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const InvoiceTemplatesScreen(),
+      ),
+    );
+  }
+
+  Future<void> _openInvoices() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const InvoicesScreen(),
+      ),
+    );
+
+    _loadInvoices();
+  }
+
+  Future<void> _createInvoice() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const CreateInvoiceScreen(),
+      ),
+    );
+
+    _loadInvoices();
   }
 
   @override
@@ -83,17 +108,14 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         actions: [
           IconButton(
-            onPressed: () {},
-            icon: const Icon(
-              Icons.notifications_none,
-            ),
+            onPressed: _openInvoiceTemplates,
+            tooltip: 'Invoice Templates',
+            icon: const Icon(Icons.dashboard_customize_outlined),
           ),
           IconButton(
             onPressed: _openBusinessProfile,
             tooltip: 'Business Profile',
-            icon: const Icon(
-              Icons.business_outlined,
-            ),
+            icon: const Icon(Icons.business_outlined),
           ),
         ],
       ),
@@ -103,7 +125,6 @@ class _HomeScreenState extends State<HomeScreen> {
           padding: const EdgeInsets.all(16),
           children: [
             const SizedBox(height: 8),
-
             const Text(
               'Good Morning',
               style: TextStyle(
@@ -111,9 +132,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-
             const SizedBox(height: 4),
-
             const Text(
               'Manage your invoices easily',
               style: TextStyle(
@@ -121,27 +140,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 fontSize: 15,
               ),
             ),
-
             const SizedBox(height: 24),
 
             SizedBox(
               width: double.infinity,
               height: 54,
               child: ElevatedButton.icon(
-                onPressed: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                      const CreateInvoiceScreen(),
-                    ),
-                  );
-
-                  _loadInvoices();
-                },
-                icon: const Icon(
-                  Icons.add,
-                ),
+                onPressed: _createInvoice,
+                icon: const Icon(Icons.add),
                 label: const Text(
                   'Create New Invoice',
                   style: TextStyle(
@@ -149,6 +155,18 @@ class _HomeScreenState extends State<HomeScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: OutlinedButton.icon(
+                onPressed: _openInvoiceTemplates,
+                icon: const Icon(Icons.palette_outlined),
+                label: const Text('Choose Invoice Template'),
               ),
             ),
 
@@ -161,7 +179,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-
             const SizedBox(height: 12),
 
             Row(
@@ -183,7 +200,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ],
             ),
-
             const SizedBox(height: 12),
 
             Row(
@@ -199,8 +215,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Expanded(
                   child: _StatCard(
                     title: 'Paid Revenue',
-                    value:
-                    '\$${paidRevenue.toStringAsFixed(2)}',
+                    value: '\$${paidRevenue.toStringAsFixed(2)}',
                     icon: Icons.payments_outlined,
                   ),
                 ),
@@ -210,8 +225,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 28),
 
             Row(
-              mainAxisAlignment:
-              MainAxisAlignment.spaceBetween,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
                   'Recent Invoices',
@@ -222,24 +236,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 if (invoices.isNotEmpty)
                   TextButton(
-                    onPressed: () async {
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                          const InvoicesScreen(),
-                        ),
-                      );
-
-                      _loadInvoices();
-                    },
-                    child: const Text(
-                      'View All',
-                    ),
+                    onPressed: _openInvoices,
+                    child: const Text('View All'),
                   ),
               ],
             ),
-
             const SizedBox(height: 8),
 
             if (invoices.isEmpty)
@@ -264,12 +265,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
             const SizedBox(height: 24),
 
-            // Business Profile
             Card(
               elevation: 0,
               child: ListTile(
-                contentPadding:
-                const EdgeInsets.symmetric(
+                contentPadding: const EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 6,
                 ),
@@ -277,11 +276,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   width: 46,
                   height: 46,
                   decoration: BoxDecoration(
-                    color: Colors.indigo.withValues(
-                      alpha: 0.1,
-                    ),
-                    borderRadius:
-                    BorderRadius.circular(12),
+                    color: Colors.indigo.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(
                     Icons.business_outlined,
@@ -290,17 +286,46 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 title: const Text(
                   'Business Profile',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.bold),
                 ),
                 subtitle: const Text(
-                  'Manage your business information',
+                  'Manage your business information and logo',
                 ),
-                trailing: const Icon(
-                  Icons.chevron_right,
-                ),
+                trailing: const Icon(Icons.chevron_right),
                 onTap: _openBusinessProfile,
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
+            Card(
+              elevation: 0,
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 6,
+                ),
+                leading: Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    color: Colors.deepPurple.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.palette_outlined,
+                    color: Colors.deepPurple,
+                  ),
+                ),
+                title: const Text(
+                  'Invoice Templates',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: const Text(
+                  'Choose from 10 invoice designs',
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: _openInvoiceTemplates,
               ),
             ),
 
@@ -315,8 +340,7 @@ class _HomeScreenState extends State<HomeScreen> {
             await Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) =>
-                const CustomersScreen(),
+                builder: (context) => const CustomersScreen(),
               ),
             );
           }
@@ -325,50 +349,31 @@ class _HomeScreenState extends State<HomeScreen> {
             await Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) =>
-                const ProductsScreen(),
+                builder: (context) => const ProductsScreen(),
               ),
             );
           }
 
           if (index == 3) {
-            await Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                const InvoicesScreen(),
-              ),
-            );
-
-            _loadInvoices();
+            await _openInvoices();
           }
         },
         destinations: const [
           NavigationDestination(
-            icon: Icon(
-              Icons.home_outlined,
-            ),
-            selectedIcon: Icon(
-              Icons.home,
-            ),
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home),
             label: 'Home',
           ),
           NavigationDestination(
-            icon: Icon(
-              Icons.people_outline,
-            ),
+            icon: Icon(Icons.people_outline),
             label: 'Customers',
           ),
           NavigationDestination(
-            icon: Icon(
-              Icons.inventory_2_outlined,
-            ),
+            icon: Icon(Icons.inventory_2_outlined),
             label: 'Products',
           ),
           NavigationDestination(
-            icon: Icon(
-              Icons.receipt_long_outlined,
-            ),
+            icon: Icon(Icons.receipt_long_outlined),
             label: 'Invoices',
           ),
         ],
@@ -397,9 +402,7 @@ class _InvoiceCard extends StatelessWidget {
     final bool isPaid = invoice.status == 'Paid';
 
     return Card(
-      margin: const EdgeInsets.only(
-        bottom: 12,
-      ),
+      margin: const EdgeInsets.only(bottom: 12),
       elevation: 0,
       child: ListTile(
         onTap: onTap,
@@ -411,9 +414,7 @@ class _InvoiceCard extends StatelessWidget {
           width: 46,
           height: 46,
           decoration: BoxDecoration(
-            color: Colors.indigo.withValues(
-              alpha: 0.1,
-            ),
+            color: Colors.indigo.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
           ),
           child: const Icon(
@@ -423,46 +424,33 @@ class _InvoiceCard extends StatelessWidget {
         ),
         title: Text(
           invoice.invoiceNumber,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         subtitle: Column(
-          crossAxisAlignment:
-          CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 4),
-            Text(
-              invoice.customerName,
-            ),
+            Text(invoice.customerName),
             const SizedBox(height: 4),
             Row(
               children: [
                 Container(
-                  padding:
-                  const EdgeInsets.symmetric(
+                  padding: const EdgeInsets.symmetric(
                     horizontal: 8,
                     vertical: 3,
                   ),
                   decoration: BoxDecoration(
                     color: isPaid
-                        ? Colors.green.withValues(
-                      alpha: 0.1,
-                    )
-                        : Colors.orange.withValues(
-                      alpha: 0.1,
-                    ),
-                    borderRadius:
-                    BorderRadius.circular(20),
+                        ? Colors.green.withValues(alpha: 0.1)
+                        : Colors.orange.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
                     invoice.status,
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
-                      color: isPaid
-                          ? Colors.green
-                          : Colors.orange,
+                      color: isPaid ? Colors.green : Colors.orange,
                     ),
                   ),
                 ),
@@ -479,8 +467,7 @@ class _InvoiceCard extends StatelessWidget {
           ],
         ),
         trailing: Text(
-          '${invoice.currency} '
-              '${invoice.total.toStringAsFixed(2)}',
+          '${invoice.currency} ${invoice.total.toStringAsFixed(2)}',
           style: const TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 14,
@@ -522,9 +509,7 @@ class _EmptyInvoices extends StatelessWidget {
             const Text(
               'Create your first invoice to see it here.',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.grey,
-              ),
+              style: TextStyle(color: Colors.grey),
             ),
           ],
         ),
@@ -551,8 +536,7 @@ class _StatCard extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
-          crossAxisAlignment:
-          CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Icon(
               icon,
