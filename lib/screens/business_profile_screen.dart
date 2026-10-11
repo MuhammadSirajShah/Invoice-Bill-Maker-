@@ -68,8 +68,7 @@ class _BusinessProfileScreenState
 
         final savedPath = business.logoPath;
 
-        if (savedPath != null &&
-            savedPath.isNotEmpty &&
+        if (savedPath != null && savedPath.isNotEmpty &&
             await File(savedPath).exists()) {
           logoPath = savedPath;
         }
@@ -79,9 +78,7 @@ class _BusinessProfileScreenState
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'Could not load business profile.',
-          ),
+          content: Text('Could not load business profile'),
         ),
       );
     }
@@ -95,8 +92,7 @@ class _BusinessProfileScreenState
 
   Future<void> _pickLogo() async {
     try {
-      final XFile? image =
-      await _imagePicker.pickImage(
+      final XFile? image = await _imagePicker.pickImage(
         source: ImageSource.gallery,
         imageQuality: 85,
       );
@@ -135,15 +131,13 @@ class _BusinessProfileScreenState
       String? finalLogoPath = logoPath;
 
       if (selectedLogo != null) {
-        finalLogoPath =
-        await BusinessStorageService.saveLogo(
+        finalLogoPath = await BusinessStorageService.saveLogo(
           selectedLogo!,
         );
       }
 
       final business = BusinessModel(
-        businessName:
-        businessNameController.text.trim(),
+        businessName: businessNameController.text.trim(),
         phone: phoneController.text.trim(),
         email: emailController.text.trim(),
         address: addressController.text.trim(),
@@ -164,9 +158,7 @@ class _BusinessProfileScreenState
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'Business profile and logo saved successfully.',
-          ),
+          content: Text('Business profile and logo saved successfully'),
         ),
       );
     } catch (e) {
@@ -185,8 +177,7 @@ class _BusinessProfileScreenState
   }
 
   Widget _buildLogoPreview() {
-    final String? currentPath =
-        selectedLogo?.path ?? logoPath;
+    final String? currentPath = selectedLogo?.path ?? logoPath;
 
     return Container(
       width: 120,
@@ -199,8 +190,7 @@ class _BusinessProfileScreenState
         ),
       ),
       clipBehavior: Clip.antiAlias,
-      child: currentPath != null &&
-          File(currentPath).existsSync()
+      child: currentPath != null && File(currentPath).existsSync()
           ? Image.file(
         File(currentPath),
         fit: BoxFit.contain,
