@@ -189,13 +189,15 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   product,
                 );
 
-                if (!mounted) {
+
+                if (!dialogContext.mounted) {
                   return;
                 }
 
                 Navigator.pop(dialogContext);
 
                 await _loadProducts();
+
               },
               child: const Text(
                 'Save',
