@@ -813,7 +813,7 @@ class _CreateInvoiceScreenState
             const SizedBox(height: 12),
 
             DropdownButtonFormField<String>(
-              value: selectedCurrency,
+              initialValue: selectedCurrency,
               decoration:
               const InputDecoration(
                 labelText: 'Currency',
