@@ -320,6 +320,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: 0,
+
         onDestinationSelected: (index) async {
           if (index == 1) {
             await Navigator.push(
@@ -328,6 +329,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 builder: (context) => const CustomersScreen(),
               ),
             );
+
+            if (!context.mounted) return;
           }
 
           if (index == 2) {
@@ -337,12 +340,17 @@ class _HomeScreenState extends State<HomeScreen> {
                 builder: (context) => const ProductsScreen(),
               ),
             );
+
+            if (!context.mounted) return;
           }
 
           if (index == 3) {
             await _openInvoices();
+
+            if (!context.mounted) return;
           }
         },
+
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.home_outlined),
