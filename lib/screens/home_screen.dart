@@ -28,8 +28,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadInvoices() async {
-    final savedInvoices =
-    await InvoiceStorageService.getInvoices();
+    final savedInvoices = await InvoiceStorageService.getInvoices();
 
     if (!mounted) return;
 
@@ -39,45 +38,36 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   int get paidInvoicesCount {
-    return invoices
-        .where((invoice) => invoice.status == 'Paid')
+    return invoices.where((invoice) => invoice.status == 'Paid')
         .length;
   }
 
   int get pendingInvoicesCount {
-    return invoices
-        .where((invoice) => invoice.status == 'Pending')
+    return invoices.where((invoice) => invoice.status == 'Pending')
         .length;
   }
 
   double get paidRevenue {
-    return invoices
-        .where((invoice) => invoice.status == 'Paid')
+    return invoices.where((invoice) => invoice.status == 'Paid')
         .fold(0.0, (sum, invoice) => sum + invoice.total);
   }
 
   Future<void> _openBusinessProfile() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const BusinessProfileScreen(),
+    await Navigator.push(context, MaterialPageRoute(
+      builder: (context) => const BusinessProfileScreen(),
       ),
     );
   }
 
   Future<void> _openInvoiceTemplates() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
+    await Navigator.push(context, MaterialPageRoute(
         builder: (context) => const InvoiceTemplatesScreen(),
       ),
     );
   }
 
   Future<void> _openInvoices() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
+    await Navigator.push(context, MaterialPageRoute(
         builder: (context) => const InvoicesScreen(),
       ),
     );
@@ -86,13 +76,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _createInvoice() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
+    await Navigator.push(context, MaterialPageRoute(
         builder: (context) => const CreateInvoiceScreen(),
       ),
     );
-
     _loadInvoices();
   }
 
@@ -100,9 +87,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Invoice & Bill Maker',
-          style: TextStyle(
+        title: const Text('Invoice & Bill Maker',style: TextStyle(
             fontWeight: FontWeight.bold,
           ),
         ),
